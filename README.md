@@ -1,6 +1,6 @@
 # Capsule Documentation
 
-Documentation for [Capsule](https://github.com/beam-cloud/capsule), the Python framework for building agentic apps with chat, pages, collections, data handlers, tasks, schedules, integrations, and deployment tooling.
+Documentation for [Capsule](https://github.com/beam-cloud/capsule), the platform for building, deploying, and monetizing agentic apps with a few lines of Python.
 
 ## Development
 
@@ -23,11 +23,11 @@ View your local preview at `http://localhost:3000`.
 ```text
 ├── docs.json              # Mintlify navigation and site config
 ├── index.mdx              # Landing page
-├── installation.mdx       # SDK + CLI installation
-├── quickstart.mdx         # Minimal Capsule app
+├── installation.mdx       # Python + CLI setup
+├── quickstart.mdx         # Fastest path to a live app
 ├── tutorials/             # Step-by-step build guides
-├── concepts/              # Mental model and architecture pages
-├── reference/             # API and CLI reference
+├── concepts/              # Platform model and capability pages
+├── reference/             # Python app API and CLI reference
 └── favicon.svg            # Site icon
 ```
 

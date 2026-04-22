@@ -1,9 +1,9 @@
 ---
 title: "App API"
-description: "Reference for `cpsl.App`, its constructor, and its app-building methods."
+description: "Reference for `cpsl.App`, the Python app definition Capsule uses to serve and deploy your app."
 ---
 
-`cpsl.App` is the root object for a Capsule application. If you are trying to understand the framework shape, start here.
+`cpsl.App` is the root object for a Capsule application. It is the Python interface to the Capsule platform: you declare surfaces, state, runtime requirements, filesystems, channels, and product settings here, and Capsule uses that definition for both local serve and hosted deploys.
 
 The `App` object does two jobs at once:
 

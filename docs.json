@@ -25,11 +25,29 @@
         "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting Started",
+            "group": "Start Here",
             "pages": ["index", "installation", "quickstart"]
           },
           {
-            "group": "Tutorials",
+            "group": "Why Capsule",
+            "pages": [
+              "concepts/why-capsule",
+              "concepts/app-model-and-runtime"
+            ]
+          },
+          {
+            "group": "Core Capabilities",
+            "pages": [
+              "concepts/sessions-and-channels",
+              "concepts/collections-and-data",
+              "concepts/pages-and-ui",
+              "concepts/tasks-and-scheduling",
+              "concepts/integrations-secrets-and-filesystems",
+              "concepts/app-styles"
+            ]
+          },
+          {
+            "group": "Build Guides",
             "pages": [
               "tutorials/first-chat-app",
               "tutorials/collections-and-scopes",
@@ -39,18 +57,6 @@
               "tutorials/integrations-secrets-and-filesystems",
               "tutorials/serve-deploy-and-iterate"
             ]
-          },
-          {
-            "group": "Concepts",
-            "pages": [
-              "concepts/app-model-and-runtime",
-              "concepts/app-styles",
-              "concepts/sessions-and-channels",
-              "concepts/collections-and-data",
-              "concepts/pages-and-ui",
-              "concepts/integrations-secrets-and-filesystems",
-              "concepts/tasks-and-scheduling"
-            ]
           }
         ]
       },
@@ -58,7 +64,7 @@
         "tab": "Reference",
         "groups": [
           {
-            "group": "Framework",
+            "group": "Python App API",
             "pages": [
               "reference/app-api",
               "reference/decorators",

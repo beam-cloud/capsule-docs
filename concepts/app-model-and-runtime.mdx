@@ -1,44 +1,46 @@
 ---
 title: "App Model And Runtime"
-description: "Understand how a Capsule app definition becomes a running product."
+description: "Understand how one Capsule app definition becomes a running app for each app user."
 ---
 
-Capsule treats your Python code as both an application definition and a deployment spec.
+Capsule is built around a simple idea: you define the app once in Python, and Capsule uses that definition to run the product everywhere it needs to appear.
 
-At the center is `cpsl.App`, which collects:
+That same definition controls:
 
-- runtime image requirements
-- message, task, schedule, and HTTP handlers
-- pages and data handlers
-- collections and settings
-- integrations, secrets, and filesystems
-- pricing and keep-warm behavior
+- the managed runtime that executes your code
+- chat, pages, API surfaces, and external channels
+- tasks, schedules, and background work
+- collections, settings, integrations, secrets, and filesystems
+- product settings such as pricing, keep-warm behavior, and deploy metadata
 
-## One object, many surfaces
+## One app definition, many product surfaces
 
-Unlike a split stack where chat, background jobs, and UI all live in different systems, Capsule lets one app expose multiple surfaces at once:
+Unlike a split stack where chat, background jobs, file storage, and UI all live in different systems, Capsule lets one app expose multiple surfaces at once:
 
-- chat
+- built-in web chat
+- named external channels
 - API endpoints
 - Python DSL pages
 - React pages
 - scheduled jobs
 - background tasks
 
-All of that is packaged off the same `App` definition.
+All of that is packaged off the same `App` definition. That is why Capsule feels closer to an application platform than to a standalone library.
+
+## Runtime per app user
+
+Capsule runs the app inside a managed runtime so you do not have to invent your own execution layer around each app user. The same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app.
 
 ## Runtime flow
 
 ```mermaid
 flowchart LR
-    user[User] --> gateway[CapsuleGateway]
-    gateway --> runner[AppRuntime]
-    runner --> messageHandlers[MessageHandlers]
-    runner --> pageLayer[PagesAndData]
-    runner --> backgroundLayer[TasksAndSchedules]
-    messageHandlers --> stateLayer[CollectionsAndSettings]
-    pageLayer --> stateLayer
-    backgroundLayer --> stateLayer
+    appUser[AppUser] --> surface[WebChatOrChannel]
+    surface --> gateway[CapsuleGateway]
+    gateway --> runtime[ManagedRuntimePerAppUser]
+    runtime --> logic[HandlersPagesTasks]
+    logic --> state[CollectionsSettingsSessionData]
+    logic --> resources[SecretsIntegrationsFilesystems]
 ```
 
 ## What `capsule serve` and `capsule deploy` read
@@ -66,7 +68,7 @@ Capsule apps can contain several kinds of executable logic:
 - schedules for cron-triggered jobs
 - endpoints and ASGI mounts for HTTP surfaces
 
-Each handler runs inside the Capsule runtime with the appropriate context injected.
+Each handler runs inside the Capsule runtime with the appropriate context injected, rather than in a completely separate app stack.
 
 ## State layers
 
@@ -89,9 +91,9 @@ Capsule has two page models:
 - the Python DSL, where a page returns `cpsl.ui.Page([...])`
 - React pages registered with `app.add_page(...)`
 
-Both can consume the same data handlers and collections.
+Both can consume the same data handlers and collections. That lets the app keep one data model even when the UI becomes richer.
 
-## Deploy knobs live in code
+## Product and deploy knobs live in code
 
 Operational concerns are part of the app definition, not an afterthought:
 
@@ -99,9 +101,11 @@ Operational concerns are part of the app definition, not an afterthought:
 - `price` and `pricing_type` describe how the app is sold
 - `keep_warm_seconds` affects runtime readiness
 - `filesystems` and `secrets` wire in external state
+- `channels` decide where the app can talk to users
 
 ## Related pages
 
+- [Why Capsule](/concepts/why-capsule)
 - [App Styles](/concepts/app-styles)
 - [Collections And Data](/concepts/collections-and-data)
 - [Tasks And Scheduling](/concepts/tasks-and-scheduling)

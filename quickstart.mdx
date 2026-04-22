@@ -1,16 +1,16 @@
 ---
 title: "Quickstart"
-description: "Build and run a minimal Capsule app in a few minutes."
+description: "Build, serve, and deploy your first Capsule app in a few minutes."
 ---
 
-This guide is intentionally small. The goal is not to show every Capsule feature. The goal is to get one app running end to end so the rest of the docs have something concrete to build on.
+This is the fastest path from a Python file to a live Capsule app.
 
 By the end you will have:
 
-- a local Capsule app
-- a working message handler
+- a local app with chat and a page
 - one small piece of session state
-- a successful deploy
+- a successful hosted deploy
+- a clear sense of where channels, tasks, filesystems, and pricing fit next
 
 ## 1. Create `app.py`
 
@@ -23,24 +23,50 @@ app = cpsl.App(
 )
 
 
+@app.page("Status", icon="layout-dashboard")
+def status_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Hello from Capsule", style="heading"),
+            cpsl.ui.Text(
+                "Chat, pages, and deploys all come from the same app definition.",
+                style="muted",
+            ),
+        ]
+    )
+
+
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
+    session.data["last_message"] = msg.text
     await session.reply(
         f"Hello {session.user.email or 'there'}.\n\n"
-        f"You said: {msg.text}"
+        f"Last message saved: {session.data['last_message']}"
     )
 ```
 
-This is the functional style, which is the easiest place to start.
+This is the functional style, which is the easiest place to start. It is also already a real app surface, not just a prompt handler.
 
 - `App(...)` defines the runtime and deploy config
 - `image=cpsl.Image()` says the app should run in a default Python environment
+- `@app.page(...)` registers a structured UI page alongside chat
 - `@app.message()` registers the chat handler
+- `session.data` stores per-session state for the current app user
 - `session.reply()` sends a message back to the user
 
 If you are wondering why `image=` is required here: in functional apps, `App(...)` needs to know the runtime environment up front. In class-based apps, that same information lives on `@app.cls(...)` instead.
 
-## 2. Start the local dev loop
+## 2. Authenticate once
+
+If you have not used Capsule on this machine before:
+
+```bash
+capsule login
+```
+
+This connects your local machine to the Capsule workspace so `serve` and `deploy` can talk to the platform.
+
+## 3. Start the live dev loop
 
 ```bash
 capsule serve app:app
@@ -53,33 +79,16 @@ capsule serve app:app
 
 `capsule serve` uploads the project, boots the runtime, and hot-reloads when you edit watched files such as Python, TSX, CSS, JSON, and Markdown.
 
-If this is your first time using Capsule on this machine, you may need to run `capsule login` first.
+## 4. Use the app
 
-## 3. Talk to the app
+Open the local preview from the `capsule serve` output. You should see:
 
-Open the local preview from the `capsule serve` output and send a message in chat.
+- chat, powered by the `@app.message()` handler
+- a `Status` page in the sidebar, powered by `@app.page(...)`
 
-Try editing the handler and saving the file:
+Send a message in chat and then refresh the page view if you want to confirm that chat and pages belong to the same app definition.
 
-```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    session.data["last_message"] = msg.text
-    await session.reply(
-        f"Last message saved for session {session.id[:8]}.\n"
-        f"Current text: {msg.text}"
-    )
-```
-
-Now the app is doing something slightly more useful:
-
-- `session.data` stores per-conversation state
-- `session.id` gives you a stable session identifier
-- saving the file should cause the local preview to pick up the change
-
-At this point you have already seen the two most common Capsule building blocks: a message handler and session state.
-
-If you want to inspect the current conversation state more directly, try this version:
+If you want to make the state handling more obvious, try this edit:
 
 ```python
 @app.message()
@@ -92,7 +101,15 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
     )
 ```
 
-## 4. Deploy it
+Now the app is doing something slightly more useful:
+
+- `session.data` stores per-conversation state
+- `session.id` gives you a stable session identifier
+- saving the file should cause the local preview to pick up the change
+
+At this point you have already seen the core Capsule loop: define an app once, run it in the managed dev runtime, and interact with it through both chat and pages.
+
+## 5. Deploy it
 
 When the local version looks good:
 
@@ -104,32 +121,37 @@ Deploy packages the same app definition you just served locally and sends it to 
 
 In other words, you are not maintaining a separate deployment config somewhere else. The Python code is the source of truth.
 
-## 5. Add the next feature
+## 6. Add the next product surface
 
 From here, most apps branch into one or more of these directions:
 
+- channels for Telegram, Slack, WhatsApp, or API entry points
 - collections for durable data and tables
 - data handlers for computed JSON
 - DSL or React pages for structured UI
 - tasks and schedules for asynchronous work
-- integrations and secrets for external systems
+- filesystems, integrations, and secrets for external systems
+- pricing when the app becomes something users pay for
 
-A common next step is to add a page so the app is not chat-only anymore:
+A common next step is to add channels or product settings directly on `App(...)`:
 
 ```python
-@app.page("Status", icon="layout-dashboard")
-def status_page():
-    return cpsl.ui.Page(
-        [
-            cpsl.ui.Text("Hello from Capsule", style="heading"),
-            cpsl.ui.Text("This is your first page.", style="muted"),
-        ]
-    )
+app = cpsl.App(
+    name="hello-capsule",
+    image=cpsl.Image(),
+    channels=[cpsl.Channel("my-telegram-bot")],
+    price=500,
+    pricing_type="monthly",
+)
 ```
+
+That one change is a good example of how Capsule is meant to work: app behavior, delivery surfaces, and product settings all live in one definition instead of being split across separate systems.
 
 ## Where to go next
 
+- [Why Capsule](/concepts/why-capsule) for the full platform story
 - [First Chat App](/tutorials/first-chat-app) for a fuller message-driven app
 - [Collections And Scopes](/tutorials/collections-and-scopes) for persisted data
 - [Data Handlers And Pages](/tutorials/data-handlers-and-pages) for dashboards and UI
+- [Tasks And Schedules](/tutorials/tasks-and-schedules) for the built-in task execution model
 - [CLI Reference](/reference/cli) for the full command surface

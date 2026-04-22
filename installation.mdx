@@ -1,15 +1,20 @@
 ---
 title: "Installation"
-description: "Install the Capsule SDK and CLI, authenticate, and scaffold a new app."
+description: "Install Capsule, authenticate to your workspace, and set up the Python and CLI toolchain for serving and deploying apps."
 ---
 
-Capsule ships as the `cpsl` Python package and includes the `capsule` CLI.
+Capsule has two pieces that work together:
+
+- `cpsl`, the Python app API you use to define handlers, pages, collections, tasks, channels, and pricing
+- `capsule`, the CLI that talks to the Capsule platform for `login`, `serve`, `deploy`, secrets, channels, and filesystems
+
+If you want the shortest path from code to a live agentic app, install the package, log into your workspace, and then move straight into the [Quickstart](/quickstart).
 
 ## Requirements
 
 - Python `3.10+`
 - a virtual environment or `uv` project
-- a Capsule workspace if you want to `serve`, `deploy`, manage secrets, or create channels
+- access to a Capsule workspace if you want to `serve`, `deploy`, manage secrets, create channels, or mount filesystems
 
 ## Install with uv
 
@@ -49,20 +54,22 @@ login
 app
 channel
 deploy
+fs
 secret
 serve
-fs
 ```
 
-## Authenticate
+## Authenticate to your workspace
 
-Before you use hosted Capsule services, log in:
+Before you use the Capsule platform from your local machine, log in:
 
 ```bash
 capsule login
 ```
 
-This opens a browser, authenticates against your workspace, and stores the token locally so `serve`, `deploy`, `secret`, `channel`, and `fs` commands can talk to the gateway.
+This opens a browser, authenticates against your workspace, and stores the token locally so `serve`, `deploy`, `secret`, `channel`, and `fs` commands can talk to Capsule.
+
+This step matters earlier than people often expect. `capsule serve` is not just a local script runner. It boots the Capsule dev loop around your app definition, so workspace auth is part of the normal setup.
 
 If you are targeting a local gateway, set the gateway URL first:
 
@@ -87,14 +94,15 @@ The bootstrap command can generate:
 
 ## What gets installed
 
-The `cpsl` package includes both the Python SDK and the CLI:
+The `cpsl` package includes both the Python app API and the CLI:
 
-- `cpsl.App`, `cpsl.Session`, `cpsl.Image`, `cpsl.Secret`, and the rest of the framework API
-- the `capsule` CLI for `serve`, `deploy`, `login`, secrets, channels, and filesystems
+- `cpsl.App`, `cpsl.Session`, `cpsl.Image`, `cpsl.Secret`, and the rest of the app-building surface
+- the `capsule` CLI for workspace auth, live serve, deploys, secrets, channels, and filesystems
 
 ## Next steps
 
-- Follow the [Quickstart](/quickstart) to run your first app.
+- Follow the [Quickstart](/quickstart) to go from one Python file to a live Capsule app.
+- Read [Why Capsule](/concepts/why-capsule) if you want the platform story before diving into APIs.
 - Use [First Chat App](/tutorials/first-chat-app) if you want a fuller walkthrough.
 - See [CLI Reference](/reference/cli) for every command and subcommand.
 

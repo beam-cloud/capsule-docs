@@ -1,9 +1,19 @@
 ---
 title: "Tasks And Scheduling"
-description: "Use background execution, retries, cron jobs, and task-aware UI in Capsule."
+description: "Use Capsule's built-in task execution model for background work, retries, cron jobs, and task-aware UI."
 ---
 
+Capsule has a built-in task execution model, so you do not need a separate worker service just to run background jobs or recurring automation.
+
 Tasks and schedules let Capsule apps keep the chat loop responsive while still doing real work.
+
+## Why this is a platform feature
+
+In Capsule, background execution is part of the same app model as chat, pages, and deploys. That means:
+
+- tasks can share the same collections, settings, filesystems, and integrations as the rest of the app
+- the UI can render task state directly with task cards and task boards
+- you do not need to split the app across a request stack and a second job stack before the product is even useful
 
 ## Tasks
 
@@ -72,6 +82,7 @@ This is especially useful for idempotent jobs, recurring syncs, and user-trigger
 
 ## Related pages
 
+- [Why Capsule](/concepts/why-capsule)
 - [Tasks And Schedules Tutorial](/tutorials/tasks-and-schedules)
 - [Decorators Reference](/reference/decorators)
 - [Session And Request Context Reference](/reference/session-and-request-context)

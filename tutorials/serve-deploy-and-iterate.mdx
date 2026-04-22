@@ -3,7 +3,9 @@ title: "Serve, Deploy, And Iterate"
 description: "Use the Capsule CLI for the full development loop: bootstrap, serve, deploy, and workspace operations."
 ---
 
-This tutorial connects the day-to-day CLI commands into one workflow.
+This tutorial is the day-to-day loop for shipping on Capsule.
+
+The point is not just to memorize CLI commands. The point is to see how the Python app definition, the managed runtime, workspace assets, and hosted deploys fit into one product workflow.
 
 ## 1. Scaffold a project
 
@@ -70,6 +72,8 @@ capsule fs create reports
 capsule channel create my-telegram-bot --type telegram -c bot_token=123:ABC
 ```
 
+These assets are part of what makes Capsule feel like a platform rather than a thin deploy wrapper. Channels, secrets, and filesystems are shared workspace resources that plug directly into the app definition.
+
 Useful inspection commands:
 
 ```bash
@@ -96,11 +100,11 @@ Deploy packages the app definition from `cpsl.App` plus everything it references
 - secrets and mounted filesystems
 - pricing and keep-warm configuration
 
-The deploy output shows the version and hosted URL.
+The deploy output shows the version and hosted URL. If the app has pricing, channels, or mounted filesystems configured, those product settings travel with the same deploy.
 
 ## 7. Smoke test the deployed app from Python
 
-The SDK includes a simple programmatic client:
+Capsule also ships a simple programmatic client:
 
 ```python
 import cpsl

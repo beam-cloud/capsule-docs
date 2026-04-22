@@ -1,9 +1,11 @@
 ---
 title: "Sessions And Channels"
-description: "Understand conversation state, user identity, and transport channels in Capsule."
+description: "Understand how Capsule keeps one session model across web chat, APIs, and external channels."
 ---
 
-`Session` is the runtime object that makes Capsule feel like an application framework instead of a raw webhook handler.
+Capsule gives you one conversation model across the ways people actually use an agentic app. The same app can answer in built-in web chat, through an API, or through named channel resources such as Slack, WhatsApp, and Telegram without rewriting the core handler logic.
+
+`Session` is the runtime object that ties those surfaces together. It carries identity, history, reply helpers, connected integrations, and scoped data for the current app user.
 
 It carries:
 
@@ -12,6 +14,10 @@ It carries:
 - per-session state
 - connected integrations
 - reply and streaming helpers
+
+## Why this matters
+
+In many stacks, channel support is a separate integration problem and every new transport means more glue code. Capsule keeps transport, session state, and reply behavior aligned around the same runtime object, which is why channels feel like a platform capability instead of an afterthought.
 
 ## Session lifecycle
 
@@ -70,6 +76,8 @@ Capsule separates transport from app logic.
 - named channel resources are referenced with `cpsl.Channel("name")`
 - `API()` gives you synchronous request/response access
 
+The key idea is that you should not have to fork the app just because users talk to it from different places. A channel changes how messages enter and leave the app, not how the core app is modeled.
+
 Preferred channel pattern:
 
 ```python
@@ -94,6 +102,7 @@ This is why the same handler can implement personal state, shared organization s
 
 ## Related pages
 
+- [Why Capsule](/concepts/why-capsule)
 - [First Chat App](/tutorials/first-chat-app)
 - [Tasks And Scheduling](/concepts/tasks-and-scheduling)
 - [Session And Request Context Reference](/reference/session-and-request-context)
