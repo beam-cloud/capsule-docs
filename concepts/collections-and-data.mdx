@@ -1,0 +1,95 @@
+---
+title: "Collections And Data"
+description: "Choose the right state model: collections, data handlers, session data, or settings."
+---
+
+Capsule gives you several ways to surface and store data. They solve different problems.
+
+## Collections
+
+Collections are durable document stores. Use them for real records:
+
+- contacts
+- reports
+- bookmarks
+- audit logs
+- user-owned resources
+
+Collections support:
+
+- scopes (`app`, `user`, `owner`, `session`)
+- CRUD from Python
+- direct UI table binding
+- sorting, filtering, and pagination hints
+
+## Data handlers
+
+Data handlers are named JSON endpoints created with `@app.data(...)`.
+
+Use them when the data is:
+
+- computed on demand
+- fetched from an API
+- an aggregate over collections
+- temporary and not worth storing
+
+Data handlers are ideal for metrics, chart series, dashboards, and API-backed views.
+
+## Settings
+
+Settings are scoped key-value configuration, not records.
+
+Use them for:
+
+- user preferences
+- toggles and modes
+- small numeric or string configuration values
+- prompt templates or feature switches
+
+Settings work especially well with UI widgets like `Toggle`, `TextInput`, `NumberInput`, and `Select`.
+
+## `session.data`
+
+`session.data` is lightweight per-conversation state. It is great for:
+
+- wizard progress
+- temporary memory
+- multi-step conversation context
+
+Do not treat it like your primary database.
+
+## Choosing the right model
+
+| Need | Best tool |
+| --- | --- |
+| Durable records with CRUD and tables | collection |
+| Computed or external JSON | data handler |
+| User/app configuration | setting |
+| Temporary per-chat state | `session.data` |
+
+## Identity and scope
+
+Collections and settings can depend on identity:
+
+- `user` for per-person state
+- `owner` for per-account or per-organization state
+- `session` for per-conversation state
+
+Capsule injects that identity automatically inside handlers and through `session.db`.
+
+## A common pattern
+
+Real apps often use all four layers together:
+
+- collection for raw entities
+- data handler for summary metrics or joined views
+- setting for display preferences
+- `session.data` for transient flow state
+
+That combination is what makes Capsule pages feel dynamic without forcing everything into one storage model.
+
+## Related pages
+
+- [Collections And Scopes](/tutorials/collections-and-scopes)
+- [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- [Collections And Settings Reference](/reference/collections-and-settings)

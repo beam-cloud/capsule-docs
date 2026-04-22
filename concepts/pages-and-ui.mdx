@@ -1,0 +1,76 @@
+---
+title: "Pages And UI"
+description: "Choose between Capsule's Python UI DSL and custom React pages."
+---
+
+Capsule pages let an app expose structured UI alongside chat.
+
+There are two page models:
+
+- **Python DSL pages** registered with `@app.page(...)`
+- **React pages** registered with `app.add_page(...)`
+
+## Python DSL pages
+
+DSL pages are the fastest way to build dashboards and operational views from Python.
+
+Common widgets include:
+
+- `Page`
+- `Row` and `Column`
+- `Card`
+- `Metric`
+- `Table`
+- `Chart`
+- `Text` and `Divider`
+- settings widgets like `Toggle`, `TextInput`, `NumberInput`, and `Select`
+- `TaskBoard`
+
+DSL pages shine when the UI is mostly declarative and backed by data handlers or collections.
+
+## React pages
+
+React pages are better when you need:
+
+- custom interactions
+- richer layouts
+- client-side state
+- third-party frontend libraries
+- bespoke visual design
+
+They consume Capsule data through the page runtime and can use helpers like `useData`, `useCollection`, `useTheme`, and `useCapsule`.
+
+## Shared data model
+
+Both page types can use the same app-layer primitives:
+
+- collections
+- data handlers
+- settings
+- theme values
+
+That means you can start in the DSL, then move one page to React without rewriting your backend model.
+
+## Access control
+
+Pages can be:
+
+- `public`
+- `authenticated`
+
+Use `access="authenticated"` for dashboards or user-specific views and `access="public"` for landing or read-only pages.
+
+## A naming pitfall
+
+There are two different `Column` types in Capsule:
+
+- `cpsl.Column` for collection schema
+- `cpsl.ui.Column` for page layout
+
+If you are working in a page file and a collection declaration nearby, keep that distinction in mind.
+
+## Related pages
+
+- [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- [React Pages And Theme](/tutorials/react-pages-and-theme)
+- [UI And Pages Reference](/reference/ui-and-pages)

@@ -1,0 +1,259 @@
+---
+title: "React Pages And Theme"
+description: "Build custom React pages, consume Capsule data in TSX, and theme your app."
+---
+
+The Python UI DSL gets you far, but eventually you will want a page that behaves more like a frontend than a config file. That is where React pages fit.
+
+They are useful when you need:
+
+- richer layout control
+- client-side interaction
+- a third-party charting or table library
+- a page that feels closer to a real product UI than a dashboard widget tree
+
+This tutorial covers:
+
+- `app.theme(...)` for branding and palette
+- `app.add_page(...)` for TSX pages
+- `@capsule/page` hooks like `useData`, `useCollection`, `useTheme`, and `useCapsule`
+- extra npm packages for custom visualizations
+
+## 1. Theme the app
+
+Start by defining the app theme in Python:
+
+```python
+import cpsl
+
+app = cpsl.App(name="react-pages-demo", image=cpsl.Image())
+
+app.theme(
+    preset="midnight",
+    tagline="Pipeline analytics for operators",
+    primary="#38BDF8",
+    accent="#A78BFA",
+    font_sans="DM Sans, sans-serif",
+    font_mono="DM Mono, monospace",
+    radius="md",
+)
+```
+
+`preset` gives you a sensible base theme. In practice, most apps start with a preset and override just a few fields such as `primary`, `accent`, and fonts.
+
+## 2. Register a React page
+
+Add a page that points at a TSX file:
+
+```python
+app.add_page(
+    "Dashboard",
+    icon="chart-column",
+    component="pages/dashboard.tsx",
+)
+```
+
+If the page needs third-party libraries, list them in `packages`:
+
+```python
+app.add_page(
+    "Charts",
+    icon="chart-candlestick",
+    component="pages/charts.tsx",
+    packages=["lightweight-charts@4.2.0"],
+)
+```
+
+## 3. Expose data for the page
+
+React pages usually consume the same building blocks as DSL pages: collections and data handlers.
+
+```python
+contacts = app.collection(
+    "contacts",
+    columns=["name", "email", "company", "status"],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=10,
+)
+
+
+@app.data("stats")
+def get_stats():
+    return {
+        "active_contacts": 42,
+        "open_deals": 8,
+        "win_rate": 0.34,
+    }
+```
+
+## 4. Create `pages/dashboard.tsx`
+
+```tsx
+import { useCapsule, useCollection, useData, useTheme } from "@capsule/page"
+
+type Stats = {
+  active_contacts: number
+  open_deals: number
+  win_rate: number
+}
+
+export default function Dashboard() {
+  const { user } = useCapsule()
+  const theme = useTheme()
+  const { color, font, radius } = theme
+
+  const stats = useData<Stats>("stats")
+  const contacts = useCollection("contacts", {
+    pageSize: 5,
+    sort: { field: "name", dir: "asc" },
+  })
+
+  if (stats.loading || contacts.loading) {
+    return <div style={{ padding: 24, color: color.muted }}>Loading…</div>
+  }
+
+  return (
+    <div style={{ padding: 24, fontFamily: font.sans, color: color.foreground }}>
+      <h2 style={{ marginTop: 0 }}>Dashboard</h2>
+      <p style={{ color: color.muted }}>
+        Signed in as {user?.email ?? "anonymous"}
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: 16 }}>
+          Active contacts: {stats.data?.active_contacts ?? "—"}
+        </div>
+        <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: 16 }}>
+          Open deals: {stats.data?.open_deals ?? "—"}
+        </div>
+        <div style={{ border: `1px solid ${color.border}`, borderRadius: radius.lg, padding: 16 }}>
+          Win rate: {Math.round((stats.data?.win_rate ?? 0) * 100)}%
+        </div>
+      </div>
+
+      <h3 style={{ marginTop: 24 }}>Contacts</h3>
+      <ul>
+        {(contacts.data ?? []).map((row: any) => (
+          <li key={row._id ?? row.id}>
+            {row.name} · {row.company} · {row.status}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+This page is doing three useful things at once:
+
+- `useData("stats")` reads a named data handler
+- `useCollection("contacts", ...)` reads a collection with paging and sorting
+- `useTheme()` gives you the current Capsule theme values so the page matches the rest of the app
+
+The common hooks you will use most often are:
+
+- `useData(name, options)` for data handlers
+- `useCollection(name, options)` for collection queries
+- `useTheme()` for app colors, fonts, and radii
+- `useCapsule()` for current app and user context
+
+If you need parameterized data, `useData` accepts params:
+
+```tsx
+const candles = useData("candles", { params: { symbol: "AAPL" } })
+```
+
+That lines up with a Python data handler like:
+
+```python
+@app.data("candles")
+def get_candles(symbol: str = "AAPL"):
+    ...
+```
+
+## 5. Run and iterate
+
+When you run:
+
+```bash
+capsule serve app:app
+```
+
+Capsule hot-reloads the React page along with the Python app. The SDK also generates `.capsule/types` so the local page environment has the right type stubs while you iterate.
+
+A practical workflow is:
+
+1. tweak the Python data handler or collection
+2. save the file and refresh the page
+3. tweak the TSX component
+4. save again and keep iterating
+
+You do not need to set up a separate frontend build pipeline just to get a custom page on screen.
+
+## 6. When to choose React over the DSL
+
+Use the Python DSL when:
+
+- tables, charts, metrics, and settings widgets are enough
+- you want the fastest path from Python to UI
+- the layout is mostly static
+
+Use React when:
+
+- you need custom interaction logic
+- you want richer visual polish
+- you need external packages
+- the page should feel like a small frontend app
+
+If you are unsure, start with the DSL. It is easier to get right quickly. Move a page to React when you actually need the extra control.
+
+## Full example
+
+```python
+import cpsl
+
+app = cpsl.App(name="react-pages-demo", image=cpsl.Image())
+
+app.theme(
+    preset="midnight",
+    tagline="Pipeline analytics for operators",
+    primary="#38BDF8",
+    accent="#A78BFA",
+    font_sans="DM Sans, sans-serif",
+    font_mono="DM Mono, monospace",
+    radius="md",
+)
+
+contacts = app.collection(
+    "contacts",
+    columns=["name", "email", "company", "status"],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=10,
+)
+
+
+@app.data("stats")
+def get_stats():
+    return {
+        "active_contacts": 42,
+        "open_deals": 8,
+        "win_rate": 0.34,
+    }
+
+
+app.add_page(
+    "Dashboard",
+    icon="chart-column",
+    component="pages/dashboard.tsx",
+)
+```
+
+## Next steps
+
+- Use React pages with durable data from [Collections And Scopes](/tutorials/collections-and-scopes)
+- Add background status views with [Tasks And Schedules](/tutorials/tasks-and-schedules)
+- See [UI And Pages Reference](/reference/ui-and-pages) for the DSL widgets and React page patterns

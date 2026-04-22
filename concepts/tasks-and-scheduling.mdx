@@ -1,0 +1,77 @@
+---
+title: "Tasks And Scheduling"
+description: "Use background execution, retries, cron jobs, and task-aware UI in Capsule."
+---
+
+Tasks and schedules let Capsule apps keep the chat loop responsive while still doing real work.
+
+## Tasks
+
+Tasks are declared with `@app.task()` or `@cpsl.task()`.
+
+They are useful for:
+
+- slow API calls
+- report generation
+- batch processing
+- retries and cancellation
+- work that should continue after the current reply
+
+Tasks return `TaskHandle` objects from `.submit()` and `.schedule()`.
+
+## Schedules
+
+Schedules are declared with `@app.schedule(cron)` or `@cpsl.schedule(cron)`.
+
+Use them for:
+
+- recurring syncs
+- periodic cleanup
+- digests
+- precomputation and cache warming
+
+Schedules run on cron, not in response to a live chat message.
+
+## Task UI
+
+Capsule has first-class task UI:
+
+- `session.show_task(handle)` renders an inline task card
+- `cpsl.ui.TaskBoard(...)` renders a full-page kanban view
+
+That means background execution is part of the product surface, not just an implementation detail.
+
+## Runtime context
+
+Tasks can optionally receive a `session`:
+
+- with a bound `session`, the task can reply, notify, stream, and access `session.db`
+- without one, the task still runs, but there is no live chat target
+
+Scheduled handlers usually rely on `cpsl.current_session()` when they need owner-scoped runtime identity.
+
+## Process isolation
+
+Set `process=True` when the task should run in a separate OS process for:
+
+- CPU parallelism
+- crash isolation
+- heavy local computation
+
+## Locking
+
+Task `lock=` values prevent duplicate work for the same logical key:
+
+```python
+@app.task(lock="report:{report_id}")
+async def build_report(...):
+    ...
+```
+
+This is especially useful for idempotent jobs, recurring syncs, and user-triggered retries.
+
+## Related pages
+
+- [Tasks And Schedules Tutorial](/tutorials/tasks-and-schedules)
+- [Decorators Reference](/reference/decorators)
+- [Session And Request Context Reference](/reference/session-and-request-context)

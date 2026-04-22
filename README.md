@@ -1,6 +1,6 @@
-# Airstore Documentation
+# Capsule Documentation
 
-Documentation for [Airstore](https://github.com/beam-cloud/airstore), the filesystem for AI agents.
+Documentation for [Capsule](https://github.com/beam-cloud/capsule), the Python framework for building agentic apps with chat, pages, collections, data handlers, tasks, schedules, integrations, and deployment tooling.
 
 ## Development
 
@@ -20,27 +20,23 @@ View your local preview at `http://localhost:3000`.
 
 ## Structure
 
-```
-├── index.mdx              # Introduction
-├── quickstart.mdx         # Getting started guide
-├── installation.mdx       # CLI installation
-├── first-workflow.mdx     # Tutorial
-├── concepts/              # Core concepts
-├── sources/               # Source integrations
-├── tools/                 # Tool usage
-├── permissions/           # Access control
-├── deployment/            # Deployment guides
-├── reference/             # CLI and config reference
-├── examples/              # Example workflows
-└── troubleshooting/       # Common issues and FAQ
+```text
+├── docs.json              # Mintlify navigation and site config
+├── index.mdx              # Landing page
+├── installation.mdx       # SDK + CLI installation
+├── quickstart.mdx         # Minimal Capsule app
+├── tutorials/             # Step-by-step build guides
+├── concepts/              # Mental model and architecture pages
+├── reference/             # API and CLI reference
+└── favicon.svg            # Site icon
 ```
 
 ## Contributing
 
-1. Fork the repository
-2. Create a branch for your changes
-3. Run `mint dev` to preview locally
-4. Submit a pull request
+1. Create a branch for your changes.
+2. Run `mint dev` to preview locally.
+3. Check for broken links and stale navigation entries in `docs.json`.
+4. Submit a pull request.
 
 ## License
 

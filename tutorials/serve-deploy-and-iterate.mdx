@@ -1,0 +1,160 @@
+---
+title: "Serve, Deploy, And Iterate"
+description: "Use the Capsule CLI for the full development loop: bootstrap, serve, deploy, and workspace operations."
+---
+
+This tutorial connects the day-to-day CLI commands into one workflow.
+
+## 1. Scaffold a project
+
+If you want a starting point instead of a blank directory:
+
+```bash
+capsule bootstrap my-agent-app
+cd my-agent-app
+```
+
+Useful templates:
+
+- `minimal` for the smallest runnable app
+- `chatbot` for a BAML-backed assistant
+- `dashboard` for chat plus a React page
+
+## 2. Authenticate once
+
+```bash
+capsule login
+```
+
+This stores workspace credentials locally so the rest of the CLI can talk to Capsule.
+
+## 3. Start the live dev loop
+
+Serve the app:
+
+```bash
+capsule serve app:app
+```
+
+During `serve`, Capsule:
+
+- resolves the entry point
+- uploads your source tree
+- boots a live runtime
+- hot-reloads when watched files change
+- regenerates page type stubs when needed
+
+Watched file types include Python, TSX/TS/JS, CSS, JSON, YAML, images, Markdown, and HTML.
+
+## 4. Bind external channels during local testing
+
+If you have a named channel resource already:
+
+```bash
+capsule serve app:app --channel my-telegram-bot
+```
+
+If the channel is already bound elsewhere, you can rebind it for the local serve:
+
+```bash
+capsule serve app:app --channel my-telegram-bot --force-channel
+```
+
+## 5. Create workspace assets
+
+As your app grows, these commands become part of the normal loop:
+
+```bash
+capsule secret create OPENAI_API_KEY=sk-...
+capsule fs create reports
+capsule channel create my-telegram-bot --type telegram -c bot_token=123:ABC
+```
+
+Useful inspection commands:
+
+```bash
+capsule secret list
+capsule fs list
+capsule channel list
+capsule app list
+```
+
+## 6. Deploy a version
+
+When you are happy with the local behavior:
+
+```bash
+capsule deploy app:app
+```
+
+Deploy packages the app definition from `cpsl.App` plus everything it references:
+
+- runtime image packages and commands
+- pages and data handlers
+- collections, settings, and integrations
+- schedules
+- secrets and mounted filesystems
+- pricing and keep-warm configuration
+
+The deploy output shows the version and hosted URL.
+
+## 7. Smoke test the deployed app from Python
+
+The SDK includes a simple programmatic client:
+
+```python
+import cpsl
+
+client = cpsl.Client()
+reply = client.chat("hello-capsule", "ping")
+print(reply.text)
+```
+
+You can also stream responses:
+
+```python
+for chunk in client.stream("hello-capsule", "write a summary"):
+    print(chunk.text, end="")
+```
+
+## 8. Inspect deployed apps
+
+The `app` command group helps you inspect what is already in the workspace:
+
+```bash
+capsule app list
+capsule app get <app-id>
+```
+
+If you need to create an app record explicitly:
+
+```bash
+capsule app create --name my-new-app --price 500
+```
+
+Most teams can skip `app create` at first and let `capsule deploy` handle the deploy flow from code.
+
+## 9. A practical local-to-prod loop
+
+The normal Capsule workflow looks like this:
+
+1. edit `app.py` and any `pages/*.tsx` files
+2. run `capsule serve app:app`
+3. test the chat, pages, tasks, and integrations
+4. create or update secrets, channels, and filesystems as needed
+5. run `capsule deploy app:app`
+6. smoke test with the web UI or `cpsl.Client`
+
+## Common pitfalls
+
+- `serve` and `deploy` both expect an entry point like `module:symbol`.
+- Functional apps require `image=` on `cpsl.App(...)`.
+- React pages need the correct `component=` path relative to the project root.
+- External channels should use named `cpsl.Channel("name")` resources rather than deprecated inline channel classes.
+- If a command says you are not logged in, run `capsule login` again.
+
+## Next steps
+
+- Learn the app surface in [App API Reference](/reference/app-api)
+- Review every command in [CLI Reference](/reference/cli)
+- Combine the dev loop with [Tasks And Schedules](/tutorials/tasks-and-schedules) and [React Pages And Theme](/tutorials/react-pages-and-theme)

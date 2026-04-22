@@ -1,0 +1,238 @@
+---
+title: "First Chat App"
+description: "Build a real Capsule chat app with session state, history, notifications, and streaming replies."
+---
+
+This tutorial takes the quickstart app and turns it into something you would actually keep building on.
+
+The app is still small, but it now has a few important behaviors:
+
+- it remembers things across turns
+- it can answer simple commands without calling a model
+- it can stream output instead of waiting for one big reply
+
+## What you are building
+
+You will build a small app that can:
+
+- remember notes in `session.data`
+- replay recent conversation history
+- stream a reply progressively
+- run boot logic when the runtime starts
+
+## 1. Start with an app skeleton
+
+Create `app.py`:
+
+```python
+import asyncio
+import cpsl
+
+app = cpsl.App(
+    name="session-notebook",
+    image=cpsl.Image(),
+)
+
+
+@app.boot()
+async def on_boot():
+    print("[session-notebook] booted")
+```
+
+The `boot` hook runs once when the runtime starts. That makes it the right place for things like model warmup, loading a local index, checking environment variables, or creating directories on disk.
+
+## 2. Add a message handler
+
+Now add the chat loop:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+    notes = session.data.setdefault("notes", [])
+
+    if text.startswith("remember "):
+        note = text[len("remember "):].strip()
+        if not note:
+            await session.reply("Give me something to remember.")
+            return
+
+        notes.append(note)
+        await session.reply(f"Saved note #{len(notes)}: {note}")
+        return
+
+    if text == "notes":
+        if not notes:
+            await session.reply("No notes yet.")
+            return
+        await session.reply("\n".join(f"- {note}" for note in notes))
+        return
+
+    if text == "history":
+        lines = [f"{m.sender}: {m.text}" for m in session.history[-10:]]
+        await session.reply("\n".join(lines) or "(empty)")
+        return
+
+    await session.notify("Thinking…")
+    async with session.stream_reply() as reply:
+        reply.write(f"Session: {session.id[:8]}\n")
+        reply.write(f"User: {session.user.email or 'anonymous'}\n\n")
+        await asyncio.sleep(0.15)
+        reply.write("Try these commands:\n")
+        for example in ["remember buy coffee", "notes", "history"]:
+            await asyncio.sleep(0.15)
+            reply.write(f"- {example}\n")
+```
+
+There are a few things going on here, so it is worth calling them out:
+
+- `session.data.setdefault("notes", [])` creates per-session state the first time the user talks to the app.
+- The `remember`, `notes`, and `history` branches are ordinary Python control flow. You do not need an LLM for every turn.
+- `session.notify("Thinking...")` is useful when the next response will take a second or two.
+- `session.stream_reply()` lets you write output gradually. That is often nicer than building one large string and replying at the end.
+
+## 3. Run the app locally
+
+```bash
+capsule serve app:app
+```
+
+In chat, try:
+
+- `remember buy coffee`
+- `remember send proposal`
+- `notes`
+- `history`
+
+You should see that:
+
+- `session.data` persists within the conversation
+- `session.history` contains recent messages
+- `session.notify()` emits lightweight status text
+- `session.stream_reply()` writes chunks incrementally and stores the final text in history
+
+## 4. Understand the session model
+
+Every message handler receives two objects:
+
+- `cpsl.Session`, which is the live runtime context
+- `cpsl.Message`, which is the inbound user message
+
+That sounds obvious, but it is the main design idea behind Capsule. Once you have those two objects, most app logic is just normal Python.
+
+The most useful `Session` fields early on are:
+
+- `session.id` for the conversation identifier
+- `session.user` for the authenticated user
+- `session.history` for prior messages
+- `session.data` for per-session persistent state
+- `session.integrations` for connected credentials
+
+The `Message` object carries:
+
+- `msg.text` for the user text
+- `msg.attachments` when the user uploaded files
+- `msg.channel_type` so you can branch on transport if needed
+
+As a rule of thumb:
+
+- put temporary conversational state in `session.data`
+- put real durable records in collections
+- read `session.history` when you need context from earlier turns
+
+## 5. Add command routing
+
+A useful next cleanup is to move the branching logic into helpers so the handler stays readable:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+
+    if text == "help":
+        await show_help(session)
+    elif text.startswith("remember "):
+        await save_note(session, text[len("remember "):])
+    else:
+        await answer_freeform(session, msg)
+```
+
+For LLM-backed apps, `session.chat_messages(msg)` is often the easiest way to turn Capsule history into alternating `user` and `assistant` messages:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    transcript = session.chat_messages(msg)
+    await session.reply(str(transcript))
+```
+
+You would usually pass that transcript into a model client rather than echoing it back, but the important point is that Capsule already does the role-merging for you.
+
+## 6. Know when to use `current_session()`
+
+Inside message handlers you already receive a live `session`, so pass it explicitly.
+
+`cpsl.current_session()` matters when:
+
+- a scheduled handler needs owner-scoped identity
+- a background task runs without a direct `session` argument
+- helper code needs to discover the active runtime context
+
+If you are writing normal request code and already have `session`, prefer using it directly. `current_session()` is most helpful in lower-level helpers and non-message contexts.
+
+## Full example
+
+```python
+import asyncio
+import cpsl
+
+app = cpsl.App(
+    name="session-notebook",
+    image=cpsl.Image(),
+)
+
+
+@app.boot()
+async def on_boot():
+    print("[session-notebook] booted")
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+    notes = session.data.setdefault("notes", [])
+
+    if text.startswith("remember "):
+        note = text[len("remember "):].strip()
+        if not note:
+            await session.reply("Give me something to remember.")
+            return
+        notes.append(note)
+        await session.reply(f"Saved note #{len(notes)}: {note}")
+        return
+
+    if text == "notes":
+        await session.reply("\n".join(f"- {note}" for note in notes) or "No notes yet.")
+        return
+
+    if text == "history":
+        lines = [f"{m.sender}: {m.text}" for m in session.history[-10:]]
+        await session.reply("\n".join(lines) or "(empty)")
+        return
+
+    await session.notify("Thinking…")
+    async with session.stream_reply() as reply:
+        reply.write(f"Session: {session.id[:8]}\n")
+        reply.write(f"User: {session.user.email or 'anonymous'}\n\n")
+        await asyncio.sleep(0.15)
+        reply.write("Try these commands:\n")
+        for example in ["remember buy coffee", "notes", "history"]:
+            await asyncio.sleep(0.15)
+            reply.write(f"- {example}\n")
+```
+
+## Next steps
+
+- Move durable data into [Collections And Scopes](/tutorials/collections-and-scopes)
+- Add structured UI with [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- See [Session And Request Context Reference](/reference/session-and-request-context) for every session helper

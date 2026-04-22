@@ -1,0 +1,232 @@
+---
+title: "App API"
+description: "Reference for `cpsl.App`, its constructor, and its app-building methods."
+---
+
+`cpsl.App` is the root object for a Capsule application. If you are trying to understand the framework shape, start here.
+
+The `App` object does two jobs at once:
+
+- it is where you declare the surfaces and data model of the app
+- it is the thing Capsule serializes when you run `capsule serve` or `capsule deploy`
+
+That is why pages, collections, integrations, and deployment knobs all sit on the same object.
+
+## Constructor
+
+```python
+app = cpsl.App(
+    name="my-app",
+    image=cpsl.Image(),
+    channels=[cpsl.Channel("my-telegram-bot")],
+    keep_warm_seconds=30,
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("reports")},
+    price=500,
+    pricing_type="monthly",
+)
+```
+
+You do not need all of these fields on every app. A small app often starts as just:
+
+```python
+app = cpsl.App(
+    name="hello",
+    image=cpsl.Image(),
+)
+```
+
+### Constructor arguments
+
+| Argument | Meaning |
+| --- | --- |
+| `name` | App name used for deploys and lookups |
+| `image` | Runtime image spec. Required for functional apps |
+| `channels` | External transport declarations. Web chat is implicit |
+| `keep_warm_seconds` | Keep the runtime warm after activity |
+| `secrets` | Workspace secret names to inject into the runtime |
+| `filesystems` | Mount-path to `FileSystem` mapping |
+| `price` | Price in cents |
+| `pricing_type` | `"one_time"` or `"monthly"` |
+
+## App-building methods
+
+Most of the `App` API is declarative. You call these once while the module is imported, and Capsule remembers the resulting config.
+
+### `app.collection(...)`
+
+Declare a persistent collection and get back a `CollectionRef` you can use from handlers.
+
+```python
+contacts = app.collection(
+    "contacts",
+    columns=[cpsl.Column("email", type="email")],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=20,
+)
+```
+
+This is usually the first thing to reach for when the app needs real persistent records.
+
+### `app.setting(...)`
+
+Declare a scoped setting that can be bound to UI widgets or read from Python.
+
+```python
+app.setting("daily_goal", scope="user", type=int, default=3)
+```
+
+Settings are better for configuration than for records. Think "user preference", not "row in a table".
+
+### `app.theme(...)`
+
+Configure colors, fonts, tagline, logo, and preset.
+
+```python
+app.theme(preset="midnight", accent="#A78BFA", font_sans="DM Sans, sans-serif")
+```
+
+In practice, most apps call this once near the top of the file and rarely touch it again.
+
+### `app.add_integration(...)`
+
+Declare a user-facing integration.
+
+```python
+app.add_integration("aws")
+app.add_integration(
+    "github",
+    client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
+    client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
+    scopes=["repo"],
+)
+```
+
+If the integration belongs to the end user, declare it here. If the credential belongs to the app itself, that is usually a workspace secret instead.
+
+### `app.add_page(...)`
+
+Register a React/TSX page.
+
+```python
+app.add_page(
+    "Dashboard",
+    icon="layout-dashboard",
+    component="pages/dashboard.tsx",
+    packages=["lightweight-charts@4.2.0"],
+    access="authenticated",
+)
+```
+
+Use this when the page needs richer interaction or external frontend libraries.
+
+### `app.page(...)`
+
+Decorator for Python DSL pages. The function must return `cpsl.ui.Page`.
+
+```python
+@app.page("Overview", icon="chart-bar")
+def overview():
+    return cpsl.ui.Page([...])
+```
+
+Use this when the page is mostly a composition of metrics, tables, charts, and settings controls.
+
+### `app.data(...)`
+
+Register a named JSON data source.
+
+```python
+@app.data("stats", access="authenticated")
+def get_stats():
+    return {"open_tasks": 12}
+```
+
+This is the cleanest way to expose computed data to both DSL pages and React pages.
+
+## Functional-only methods
+
+These are only valid when the app was created with `image=...` on the constructor:
+
+- `app.boot()`
+- `app.shutdown()`
+- `app.enter()`
+- `app.exit()`
+- `app.message()`
+- `app.schedule(cron)`
+- `app.endpoint(...)`
+- `app.asgi(...)`
+- `app.task(...)`
+
+Here is a small functional app that uses several of them together:
+
+```python
+import cpsl
+
+app = cpsl.App(name="ops-bot", image=cpsl.Image())
+
+
+@app.boot()
+async def on_boot():
+    print("booted")
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(msg.text)
+
+
+@app.task()
+async def sync_index():
+    ...
+```
+
+## Class-based apps
+
+For class-based apps, use `@app.cls(...)` and the global decorators from `cpsl`:
+
+```python
+app = cpsl.App(name="my-app")
+
+
+@app.cls(image=cpsl.Image())
+class MyApp:
+    @cpsl.message()
+    async def handle(self, session: cpsl.Session, msg: cpsl.Message):
+        ...
+```
+
+### `@app.cls(...)` arguments
+
+| Argument | Meaning |
+| --- | --- |
+| `image` | Runtime image spec |
+| `price` | Price in cents |
+| `pricing_type` | `"one_time"` or `"monthly"` |
+| `channels` | External channels |
+| `keep_warm_seconds` | Warm runtime window |
+| `secrets` | Secret names to inject |
+| `filesystems` | Mount-path to `FileSystem` mapping |
+
+## `app.settings`
+
+Every `App` has a settings accessor:
+
+- `await app.settings.get(key)`
+- `await app.settings.set(key, value)`
+- `await app.settings.get_all(keys=None)`
+
+Example:
+
+```python
+goal = await app.settings.get("daily_goal")
+await app.settings.set("daily_goal", goal + 1)
+```
+
+## See also
+
+- [Decorators Reference](/reference/decorators)
+- [Collections And Settings Reference](/reference/collections-and-settings)
+- [Image, Theme, And Deployment Reference](/reference/image-theme-and-deployment)

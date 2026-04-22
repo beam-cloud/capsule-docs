@@ -1,0 +1,214 @@
+---
+title: "Collections And Settings"
+description: "Reference for `CollectionRef`, collection scopes, typed columns, and the settings API."
+---
+
+## Collection scopes
+
+Collections and settings are related, but they solve different problems:
+
+- collections are for records
+- settings are for configuration
+
+Once that distinction is clear, the API is much easier to reason about.
+
+Capsule collections support four scopes:
+
+| Scope | Meaning |
+| --- | --- |
+| `app` | Shared across the whole app |
+| `user` | Isolated per authenticated user |
+| `owner` | Shared across an owner or organization |
+| `session` | Isolated to a single session |
+
+A practical example:
+
+- `app` for a shared lead table
+- `user` for saved bookmarks
+- `owner` for organization-wide reports
+- `session` for temporary scratch notes
+
+## `cpsl.Column`
+
+Use `cpsl.Column` to give a collection column metadata:
+
+```python
+cpsl.Column("status", type="status")
+```
+
+### Supported column types
+
+- `text`
+- `number`
+- `currency`
+- `date`
+- `link`
+- `email`
+- `status`
+- `tags`
+- `boolean`
+
+### Column fields
+
+| Field | Meaning |
+| --- | --- |
+| `key` | Stored field name |
+| `type` | Column type |
+| `label` | Optional display label |
+| `format` | Optional display formatting hint |
+
+Example collection declaration:
+
+```python
+contacts = app.collection(
+    "contacts",
+    columns=[
+        cpsl.Column("name"),
+        cpsl.Column("email", type="email"),
+        cpsl.Column("website", type="link"),
+        cpsl.Column("status", type="status"),
+    ],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=20,
+)
+```
+
+## `CollectionRef`
+
+`CollectionRef` is returned by `app.collection(...)`.
+
+### Common methods
+
+| Method | Purpose |
+| --- | --- |
+| `insert_one(document)` | Insert one document |
+| `insert_many(documents)` | Insert multiple documents |
+| `find_one(filter=None)` | Find one document |
+| `find(filter=None, limit=0, skip=0, sort=None)` | Query many documents |
+| `update_one(filter, update)` | Patch one document |
+| `delete_one(filter)` | Delete one document |
+| `count(filter=None)` | Count matching documents |
+
+Inserted documents get both `_id` and `id`.
+
+Typical CRUD flow:
+
+```python
+created = await contacts.insert_one(
+    {"name": "Ada", "email": "ada@example.com", "status": "active"}
+)
+
+row = await contacts.find_one({"_id": created["_id"]})
+rows = await contacts.find({"status": "active"}, limit=25, sort={"name": 1})
+count = await contacts.count()
+```
+
+## Update behavior
+
+Plain update dicts are treated as patches and automatically wrapped in `$set`:
+
+```python
+await contacts.update_one({"_id": contact_id}, {"status": "inactive"})
+```
+
+Operator documents pass through unchanged:
+
+```python
+await contacts.update_one({"_id": contact_id}, {"$inc": {"touches": 1}})
+```
+
+Do not mix plain keys and operator keys in one update document.
+
+## `session.db`
+
+Inside a live session, `session.db` gives you a scoped database proxy:
+
+```python
+await session.db.bookmarks.insert_one({"title": "Capsule"})
+```
+
+This is especially convenient for `user`, `owner`, and `session` collections.
+
+Example:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.db.bookmarks.insert_one({"title": msg.text})
+    total = await session.db.bookmarks.count()
+    await session.reply(f"Bookmarks: {total}")
+```
+
+## Settings declarations
+
+Declare settings with `app.setting(...)`:
+
+```python
+app.setting("daily_goal", scope="user", type=int, default=3)
+```
+
+### Arguments
+
+| Argument | Meaning |
+| --- | --- |
+| `name` | Unique setting key |
+| `scope` | `app`, `owner`, or `user` |
+| `type` | `bool`, `str`, `int`, or `float` |
+| `default` | Default value when unset |
+| `options` | Allowed values for select-like settings |
+| `label` | Human-readable UI label |
+
+A fuller example:
+
+```python
+app.setting("daily_goal", scope="user", type=int, default=3, label="Daily goal")
+app.setting("show_completed", scope="user", type=bool, default=True, label="Show completed")
+app.setting(
+    "default_view",
+    scope="user",
+    type=str,
+    default="table",
+    options=["table", "chart"],
+)
+```
+
+## `app.settings`
+
+The settings accessor methods are async:
+
+```python
+value = await app.settings.get("daily_goal")
+await app.settings.set("daily_goal", 5)
+all_values = await app.settings.get_all()
+```
+
+Settings are stored in a reserved backing collection and scoped using the same identity rules as collections.
+
+It is common to pair settings with UI controls:
+
+```python
+@app.page("Preferences")
+def preferences():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Toggle("Show completed", setting="show_completed"),
+            cpsl.ui.NumberInput("Daily goal", setting="daily_goal", min=1, max=20),
+            cpsl.ui.Select("Default view", setting="default_view"),
+        ]
+    )
+```
+
+## Practical guidance
+
+- Use collections for records.
+- Use settings for configuration.
+- Use `session.data` for conversational scratch state.
+- Use typed `Column` metadata when the table should render richer values or better labels.
+
+## See also
+
+- [Collections And Scopes](/tutorials/collections-and-scopes)
+- [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- [UI And Pages Reference](/reference/ui-and-pages)

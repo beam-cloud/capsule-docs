@@ -1,0 +1,109 @@
+---
+title: "Client"
+description: "Reference for the programmatic `cpsl.Client` used to talk to Capsule apps."
+---
+
+`cpsl.Client` is the lightweight Python client for talking to deployed Capsule apps from outside the app runtime.
+
+It is useful for:
+
+- deploy smoke tests
+- scripts and admin tools
+- cron jobs
+- other Python services that want to call a Capsule app
+
+## Setup
+
+The client authenticates from `capsule login` by default:
+
+```python
+import cpsl
+
+client = cpsl.Client()
+```
+
+You can also pass credentials manually:
+
+```python
+client = cpsl.Client(token="...", gateway_url="https://gateway.capsule.new")
+```
+
+If you have already run `capsule login`, the zero-argument form is usually all you need.
+
+## App lookup methods
+
+| Method | Purpose |
+| --- | --- |
+| `list_apps()` | List apps in the workspace |
+| `get_app(name_or_id)` | Get metadata for one app |
+| `create_checkout(app, return_url="")` | Create a checkout URL |
+| `list_payments(app)` | List payments for an app |
+| `get_earnings(app)` | Get earnings summary |
+
+## Chat methods
+
+### `chat(app, text, session_id=None)`
+
+Send a message and wait for the full response.
+
+```python
+reply = client.chat("hello-capsule", "ping")
+print(reply.text)
+```
+
+If you are writing a quick post-deploy smoke test, this is usually the most convenient entry point.
+
+Returns `ChatResponse` with:
+
+- `text`
+- `session_id`
+- `request_id`
+- `raw`
+
+### `stream(app, text, session_id=None)`
+
+Stream a response via SSE:
+
+```python
+for chunk in client.stream("hello-capsule", "write a summary"):
+    print(chunk.text, end="")
+```
+
+This is handy when you want your script to show progress instead of waiting for the entire response.
+
+Each `StreamChunk` exposes:
+
+- `event`
+- `data`
+- `text` convenience property
+- `done` convenience property
+
+## Session continuity
+
+Pass `session_id` if you want multiple client calls to continue the same conversation:
+
+```python
+first = client.chat("hello-capsule", "remember apples")
+second = client.chat("hello-capsule", "what did I say?", session_id=first.session_id)
+```
+
+Without `session_id`, each call starts a fresh conversation.
+
+## Typical uses
+
+Example smoke test:
+
+```python
+import cpsl
+
+client = cpsl.Client()
+reply = client.chat("ops-bot", "ping")
+
+assert "pong" in reply.text.lower()
+print("smoke test passed")
+```
+
+## See also
+
+- [Serve, Deploy, And Iterate](/tutorials/serve-deploy-and-iterate)
+- [CLI Reference](/reference/cli)

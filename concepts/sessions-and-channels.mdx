@@ -1,0 +1,100 @@
+---
+title: "Sessions And Channels"
+description: "Understand conversation state, user identity, and transport channels in Capsule."
+---
+
+`Session` is the runtime object that makes Capsule feel like an application framework instead of a raw webhook handler.
+
+It carries:
+
+- the current user identity
+- message history
+- per-session state
+- connected integrations
+- reply and streaming helpers
+
+## Session lifecycle
+
+At a high level:
+
+1. a user opens chat, calls the API, or arrives through a bound external channel
+2. Capsule creates or resumes a `Session`
+3. your message handler receives `session` and `msg`
+4. the runtime persists updates to `session.history` and `session.data`
+
+Hooks like `enter()` and `exit()` let you run code when sessions are created or closed.
+
+## What lives on `Session`
+
+The most important fields are:
+
+- `session.id`
+- `session.user`
+- `session.channel`
+- `session.history`
+- `session.data`
+- `session.integrations`
+- `session.db`
+
+Use `session.data` for lightweight conversation state. Use collections for durable application data.
+
+## Reply patterns
+
+Capsule supports several reply modes:
+
+- `reply()` for a complete response
+- `notify()` for lightweight status messages
+- `stream_reply()` for chunked output
+- `stream_reply_from()` for piping async model streams
+- `show()` for structured blocks like task cards or integration prompts
+
+That gives you one session model that works for plain text, streaming AI responses, and richer UI blocks.
+
+## `current_session()`
+
+`cpsl.current_session()` returns the active runtime session, when one exists.
+
+It is especially useful when:
+
+- helper code needs access to the current identity
+- a scheduled handler wants owner-scoped context
+- a background task runs without a direct `session` argument
+
+In message handlers, passing `session` explicitly is usually clearer.
+
+## Channels
+
+Capsule separates transport from app logic.
+
+- built-in web chat is available implicitly
+- named channel resources are referenced with `cpsl.Channel("name")`
+- `API()` gives you synchronous request/response access
+
+Preferred channel pattern:
+
+```python
+app = cpsl.App(
+    name="ops-bot",
+    image=cpsl.Image(),
+    channels=[cpsl.Channel("my-telegram-bot")],
+)
+```
+
+The older inline `Telegram(...)`, `Slack(...)`, and `WhatsApp(...)` channel objects are deprecated.
+
+## User identity
+
+`session.user` gives you the authenticated user and owner context:
+
+- `id` for the individual user
+- `email` when available
+- `owner_id` semantics for owner-scoped collections
+
+This is why the same handler can implement personal state, shared organization state, and anonymous/public experiences.
+
+## Related pages
+
+- [First Chat App](/tutorials/first-chat-app)
+- [Tasks And Scheduling](/concepts/tasks-and-scheduling)
+- [Session And Request Context Reference](/reference/session-and-request-context)
+- [Channels, Integrations, And Secrets Reference](/reference/channels-integrations-and-secrets)

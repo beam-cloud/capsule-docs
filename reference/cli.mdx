@@ -1,346 +1,181 @@
 ---
-title: "CLI Reference"
-description: "Complete reference for all Airstore CLI commands"
+title: "CLI"
+description: "Reference for the `capsule` CLI: bootstrap, login, serve, deploy, app, channel, secret, and fs."
 ---
 
-The Airstore CLI provides commands for managing workspaces, members, connections, and tokens, as well as mounting the virtual filesystem.
+The `capsule` CLI is installed with the `cpsl` package.
 
-## Global flags
+In day-to-day use, most people end up using a small subset of commands over and over:
 
-These flags work with all commands:
+- `capsule login`
+- `capsule serve`
+- `capsule deploy`
+- `capsule secret`
+- `capsule fs`
 
-| Flag | Description |
-|------|-------------|
-| `--gateway` | Gateway gRPC address (default: `gateway.airstore.ai:443`) |
-| `--gateway-http` | Gateway HTTP address (default: `https://api.airstore.ai`) |
-| `--token` | Authentication token |
-| `--json` | Output in JSON format |
-| `-h`, `--help` | Show help for a command |
-| `-v`, `--version` | Show version |
+The rest are there when you need to inspect or manage workspace resources directly.
 
-## Authentication
-
-### `airstore login`
-
-Authenticate via browser. Opens your default browser to complete authentication.
-
-**Usage:** `airstore login`
+## Top-level commands
 
 ```bash
-airstore login
+capsule --help
 ```
 
-After successful login, credentials are stored in `~/.airstore/credentials` and used automatically by other commands.
+Main command groups:
 
-<Note>
-For CI/CD or automation, use `airstore mount --token` instead.
-</Note>
+- `bootstrap`
+- `login`
+- `app`
+- `channel`
+- `deploy`
+- `secret`
+- `serve`
+- `fs`
 
-## Workspaces
+## `capsule bootstrap`
 
-Manage workspaces. A workspace is a container for members, connections, and tasks.
-
-### `airstore workspace create`
-
-Create a new workspace.
-
-**Usage:** `airstore workspace create <name>`
+Scaffold a new project from a template.
 
 ```bash
-airstore workspace create my-workspace
+capsule bootstrap my-app
+capsule bootstrap my-app --template minimal
 ```
 
-### `airstore workspace list`
+Templates:
 
-List all workspaces.
+- `chatbot`
+- `dashboard`
+- `minimal`
+
+## `capsule login`
+
+Authenticate through the browser:
 
 ```bash
-airstore workspace list
+capsule login
 ```
 
-### `airstore workspace get`
+Useful options:
 
-Get workspace details.
+- `--host`
+- `--port`
+- `--http-port`
 
-**Usage:** `airstore workspace get <id>`
+Environment note: set `CAPSULE_GATEWAY_URL=localhost:1980` before login when targeting a local gateway.
+
+## `capsule serve`
+
+Run an app with hot reload:
 
 ```bash
-airstore workspace get ws_abc123
+capsule serve app:app
 ```
 
-### `airstore workspace delete`
+Options:
 
-Delete a workspace.
+- `--channel <name>` bind one or more named channels during local serve
+- `--force-channel` unbind or rebind existing channel bindings
 
-**Usage:** `airstore workspace delete <id>`
+Entry-point format is always `module:symbol`.
+
+For example, `capsule serve app:app` means "load the symbol `app` from `app.py`".
+
+## `capsule deploy`
+
+Deploy the app:
 
 ```bash
-airstore workspace delete ws_abc123
+capsule deploy app:app
 ```
 
-## Members
+Deploy reads the app definition and sends the runtime image, pages, integrations, schedules, secrets, filesystems, pricing, and source archive to Capsule.
 
-Manage workspace members.
+If `serve` is the local development loop, `deploy` is the same app definition promoted to a hosted version.
 
-### `airstore member add`
+## `capsule app`
 
-Add a member to a workspace.
+Manage workspace apps.
 
-**Usage:** `airstore member add <workspace_id> <email>`
+You may not need this group very often if you mostly work from code, but it is useful for inspecting what already exists in the workspace.
+
+### `capsule app create`
 
 ```bash
-airstore member add ws_abc123 user@example.com
-airstore member add ws_abc123 user@example.com --name "Jane Doe" --role admin
+capsule app create --name my-app --price 500
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--name` | Member display name |
-| `--role` | Role: `admin`, `member`, `viewer` (default: `member`) |
-
-### `airstore member list`
-
-List members in a workspace.
-
-**Usage:** `airstore member list <workspace_id>`
+### `capsule app list`
 
 ```bash
-airstore member list ws_abc123
+capsule app list
 ```
 
-### `airstore member remove`
-
-Remove a member from a workspace.
-
-**Usage:** `airstore member remove <member_id>`
+### `capsule app get`
 
 ```bash
-airstore member remove mem_xyz789
+capsule app get <app-id>
 ```
 
-## Connections
+## `capsule channel`
 
-Manage integration connections. Connections link external services (GitHub, Gmail, etc.) to your workspace.
+Manage named external channel resources.
 
-### `airstore connection add`
-
-Add an integration connection to a workspace.
-
-**Usage:** `airstore connection add <workspace_id> <type>`
-
-**Supported integration types:**
-
-| Type | Authentication | Description |
-|------|----------------|-------------|
-| `github` | `--token` | GitHub personal access token (`ghp_*` or `github_pat_*`) |
-| `gmail` | `--token` | Gmail OAuth access token |
-| `gdrive` | `--token` | Google Drive OAuth access token |
-| `notion` | `--token` | Notion integration token (`secret_*` or `ntn_*`) |
-| `weather` | `--api-key` | OpenWeatherMap API key |
-| `exa` | `--api-key` | Exa AI search API key |
-| `posthog` | `--api-key` | PostHog personal API key (`phx_*`) |
+### Common commands
 
 ```bash
-# Token-based integrations
-airstore connection add ws_abc123 github --token ghp_xxxxxxxxxxxx
-airstore connection add ws_abc123 notion --token secret_xxxxxxxxxxxx
-
-# API key integrations
-airstore connection add ws_abc123 weather --api-key abc123
-airstore connection add ws_abc123 exa --api-key abc123
-airstore connection add ws_abc123 posthog --api-key phx_xxxxxxxxxxxx
-
-# Personal connection (not shared with workspace)
-airstore connection add ws_abc123 github --token ghp_xxx --member mem_xyz
+capsule channel create my-tg-bot --type telegram -c bot_token=123:ABC
+capsule channel list
+capsule channel info my-tg-bot
+capsule channel bind my-tg-bot --app my-app
+capsule channel unbind my-tg-bot
+capsule channel delete my-tg-bot
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--token` | Access token (for OAuth integrations like GitHub, Gmail) |
-| `--api-key` | API key (for API key integrations like Weather, Exa) |
-| `--member` | Member ID for personal connection (omit for shared) |
-| `--scope` | OAuth scopes |
+Supported channel types:
 
-### `airstore connection list`
+- `telegram`
+- `slack`
+- `whatsapp`
 
-List connections in a workspace.
+## `capsule secret`
 
-**Usage:** `airstore connection list <workspace_id>`
+Manage workspace secrets.
+
+### Common commands
 
 ```bash
-airstore connection list ws_abc123
+capsule secret create OPENAI_API_KEY=sk-...
+capsule secret list
+capsule secret delete OPENAI_API_KEY
 ```
 
-### `airstore connection remove`
+## `capsule fs`
 
-Remove a connection.
+Manage filesystems.
 
-**Usage:** `airstore connection remove <connection_id>`
+### Common commands
 
 ```bash
-airstore connection remove conn_abc123
+capsule fs create reports
+capsule fs list
+capsule fs delete reports
+capsule fs ls reports /
+capsule fs upload reports ./report.csv /incoming/report.csv
+capsule fs download reports /incoming/report.csv ./report.csv
 ```
 
-### `airstore connection connect`
-
-Connect an OAuth integration via browser. Opens a browser for authentication.
-
-**Usage:** `airstore connection connect <integration>`
+## Typical workflow
 
 ```bash
-airstore connection connect gmail
-airstore connection connect gdrive
+capsule login
+capsule bootstrap my-app
+cd my-app
+capsule serve app:app
+capsule secret create OPENAI_API_KEY=sk-...
+capsule deploy app:app
 ```
 
-Supported OAuth integrations: `gmail`, `gdrive`
+## See also
 
-<Note>
-Requires authentication via `airstore login` or `--token` flag.
-</Note>
-
-## Mount
-
-Mount the Airstore virtual filesystem.
-
-### `airstore mount`
-
-Mount the Airstore virtual filesystem at the specified path. This command blocks until unmounted (Ctrl+C).
-
-**Usage:** `airstore mount <path>`
-
-```bash
-airstore mount ~/airstore --config config.local.yaml
-```
-
-The filesystem provides configured MCP tools as executables in `/tools/*`.
-
-| Option | Description |
-|--------|-------------|
-| `--verbose`, `-v` | Enable verbose logging |
-| `--config`, `-c` | Path to config file (required for local mode) |
-| `--token` | API token for non-interactive auth (skips browser login) |
-
-**Local mode** runs an embedded gateway within the CLI process:
-
-```bash
-airstore mount ~/airstore --config config.local.yaml
-```
-
-After mounting, the command displays:
-
-```
-  airstore mounted
-
-  Mount    ~/airstore
-  Gateway  127.0.0.1:1993
-  Mode     local
-
-  Available paths:
-    /tools/*        Tool binaries
-
-  Press Ctrl+C to unmount
-```
-
-Press `Ctrl+C` to gracefully unmount. Press `Ctrl+C` again to force exit.
-
-### `airstore start`
-
-Run Airstore as a background service with a menu bar app (macOS only). This is an alternative to `airstore mount` that doesn't require keeping a terminal open.
-
-**Usage:** `airstore start`
-
-```bash
-airstore start
-```
-
-After starting, Airstore mounts to `~/Desktop/Airstore` and an icon appears in your menu bar where you can unmount, open the folder, or quit.
-
-<Note>
-On first run, macOS may prompt you to allow Airstore to run in the background.
-</Note>
-
-## Tokens
-
-Manage workspace tokens. Tokens are used for authentication when mounting or accessing the API.
-
-### `airstore token create`
-
-Create an API token for a member.
-
-**Usage:** `airstore token create <workspace_id> <member_id>`
-
-```bash
-airstore token create ws_abc123 mem_xyz789
-airstore token create ws_abc123 mem_xyz789 --name "CI Token" --expires 7d
-```
-
-| Option | Description |
-|--------|-------------|
-| `--name` | Token name (default: "API Token") |
-| `--expires` | Expiration duration (e.g., `24h`, `7d`, `30d`) |
-
-<Warning>
-Save the token immediately after creation. It won't be shown again.
-</Warning>
-
-### `airstore token list`
-
-List tokens in a workspace.
-
-**Usage:** `airstore token list <workspace_id>`
-
-```bash
-airstore token list ws_abc123
-```
-
-### `airstore token revoke`
-
-Revoke a token.
-
-**Usage:** `airstore token revoke <token_id>`
-
-```bash
-airstore token revoke tok_abc123
-```
-
-## Completion
-
-Generate shell autocompletion scripts.
-
-### `airstore completion bash`
-
-Generate bash completion script.
-
-```bash
-# Add to ~/.bashrc
-source <(airstore completion bash)
-```
-
-### `airstore completion zsh`
-
-Generate zsh completion script.
-
-```bash
-# Add to ~/.zshrc
-source <(airstore completion zsh)
-```
-
-### `airstore completion fish`
-
-Generate fish completion script.
-
-```bash
-airstore completion fish | source
-```
-
-### `airstore completion powershell`
-
-Generate PowerShell completion script.
-
-```powershell
-airstore completion powershell | Out-String | Invoke-Expression
-```
-
----
-
-See also: [Config file reference](/reference/config) | [Mounting](/concepts/mounting)
+- [Serve, Deploy, And Iterate](/tutorials/serve-deploy-and-iterate)
+- [App API Reference](/reference/app-api)

@@ -1,94 +1,100 @@
 ---
 title: "Installation"
-description: "Install the Airstore CLI on macOS or Linux"
+description: "Install the Capsule SDK and CLI, authenticate, and scaffold a new app."
 ---
 
-## Install the CLI
+Capsule ships as the `cpsl` Python package and includes the `capsule` CLI.
+
+## Requirements
+
+- Python `3.10+`
+- a virtual environment or `uv` project
+- a Capsule workspace if you want to `serve`, `deploy`, manage secrets, or create channels
+
+## Install with uv
+
+If you use `uv`, add Capsule to your project:
 
 ```bash
-curl -sSL https://airstore.dev/install.sh | sh
+uv add cpsl
 ```
 
-The install script automatically:
-
-- Downloads the correct binary for your platform
-- Installs FUSE dependencies
-- Configures permissions
-
-## System requirements
-
-| Platform | Status |
-|----------|--------|
-| macOS (Apple Silicon) | Supported |
-| macOS (Intel) | Supported |
-| Linux (x86_64) | Supported |
-| Linux (ARM64) | Supported |
-| Windows | Coming soon |
-
-## Verify installation
+Or install it into a virtual environment directly:
 
 ```bash
-airstore --version
+uv venv
+source .venv/bin/activate
+uv pip install cpsl
 ```
 
-You should see output like:
+## Install with pip
 
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install cpsl
 ```
-airstore 0.1.0
+
+## Verify the CLI
+
+```bash
+capsule --help
 ```
+
+You should see the main command groups:
+
+```text
+bootstrap
+login
+app
+channel
+deploy
+secret
+serve
+fs
+```
+
+## Authenticate
+
+Before you use hosted Capsule services, log in:
+
+```bash
+capsule login
+```
+
+This opens a browser, authenticates against your workspace, and stores the token locally so `serve`, `deploy`, `secret`, `channel`, and `fs` commands can talk to the gateway.
+
+If you are targeting a local gateway, set the gateway URL first:
+
+```bash
+export CAPSULE_GATEWAY_URL=localhost:1980
+capsule login
+```
+
+## Scaffold a project
+
+To start from a template instead of a blank file:
+
+```bash
+capsule bootstrap my-agent-app
+```
+
+The bootstrap command can generate:
+
+- `minimal` for a tiny message handler
+- `chatbot` for a BAML-backed chat app
+- `dashboard` for chat plus a custom React page
+
+## What gets installed
+
+The `cpsl` package includes both the Python SDK and the CLI:
+
+- `cpsl.App`, `cpsl.Session`, `cpsl.Image`, `cpsl.Secret`, and the rest of the framework API
+- the `capsule` CLI for `serve`, `deploy`, `login`, secrets, channels, and filesystems
 
 ## Next steps
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  Connect your services and mount your first source view.
-</Card>
+- Follow the [Quickstart](/quickstart) to run your first app.
+- Use [First Chat App](/tutorials/first-chat-app) if you want a fuller walkthrough.
+- See [CLI Reference](/reference/cli) for every command and subcommand.
 
----
-
-<Accordion title="Alternative installation methods">
-
-### Build from source
-
-```bash
-git clone https://github.com/beam-cloud/airstore
-cd airstore
-make build
-```
-
-### Manual dependency installation
-
-If the install script doesn't work for your system, you can install dependencies manually:
-
-**FUSE** (required for filesystem mounting):
-
-<CodeGroup>
-
-```bash macOS
-brew install fuse-t
-```
-
-```bash Ubuntu/Debian
-sudo apt install fuse3
-```
-
-```bash Fedora
-sudo dnf install fuse3
-```
-
-```bash Arch
-sudo pacman -S fuse3
-```
-
-</CodeGroup>
-
-**Node.js** (only for [local mode](/deployment/local)):
-
-```bash
-# macOS
-brew install node
-
-# Ubuntu/Debian
-sudo apt install nodejs npm
-```
-
-</Accordion>

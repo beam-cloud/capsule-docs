@@ -1,13 +1,13 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "linden",
-  "name": "Airstore",
+  "name": "Capsule",
   "colors": {
-    "primary": "#8B5CF6",
-    "light": "#A78BFA",
-    "dark": "#7C3AED"
+    "primary": "#1565C0",
+    "light": "#38BDF8",
+    "dark": "#1A1D21"
   },
-  "favicon": "/favicon.ico",
+  "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
@@ -15,75 +15,53 @@
         "groups": [
           {
             "group": "Getting Started",
-            "pages": ["index", "quickstart", "installation"]
+            "pages": ["index", "installation", "quickstart"]
           },
           {
-            "group": "Core Concepts",
+            "group": "Tutorials",
             "pages": [
-              "concepts/how-it-works",
-              "concepts/source-views",
-              "concepts/tools",
-              "concepts/skills",
-              "concepts/mounting"
+              "tutorials/first-chat-app",
+              "tutorials/collections-and-scopes",
+              "tutorials/data-handlers-and-pages",
+              "tutorials/react-pages-and-theme",
+              "tutorials/tasks-and-schedules",
+              "tutorials/integrations-secrets-and-filesystems",
+              "tutorials/serve-deploy-and-iterate"
             ]
           },
           {
-            "group": "Guides",
-            "pages": ["guides/claude-code", "guides/migrating-mcps"]
-          },
-          {
-            "group": "Integration Guides",
-            "pages": ["guides/posthog"]
-          },
-          {
-            "group": "Self-Hosted / Local",
-            "pages": ["deployment/local", "first-workflow", "reference/config"]
-          },
-          {
-            "group": "Reference",
-            "pages": ["reference/cli", "sdk/overview"]
+            "group": "Concepts",
+            "pages": [
+              "concepts/app-model-and-runtime",
+              "concepts/app-styles",
+              "concepts/sessions-and-channels",
+              "concepts/collections-and-data",
+              "concepts/pages-and-ui",
+              "concepts/integrations-secrets-and-filesystems",
+              "concepts/tasks-and-scheduling"
+            ]
           }
         ]
       },
       {
-        "tab": "CLI Reference",
+        "tab": "Reference",
         "groups": [
+          {
+            "group": "Framework",
+            "pages": [
+              "reference/app-api",
+              "reference/decorators",
+              "reference/session-and-request-context",
+              "reference/collections-and-settings",
+              "reference/ui-and-pages",
+              "reference/channels-integrations-and-secrets",
+              "reference/client",
+              "reference/image-theme-and-deployment"
+            ]
+          },
           {
             "group": "CLI",
             "pages": ["reference/cli"]
-          }
-        ]
-      },
-      {
-        "tab": "TypeScript SDK",
-        "groups": [
-          {
-            "group": "Getting Started",
-            "pages": ["sdk/overview"]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "sdk/guides/manage-workspaces",
-              "sdk/guides/connect-integrations",
-              "sdk/guides/source-views",
-              "sdk/guides/read-files",
-              "sdk/guides/tokens-and-mounting"
-            ]
-          },
-          {
-            "group": "API Reference",
-            "pages": [
-              "sdk/reference/client",
-              "sdk/reference/workspaces",
-              "sdk/reference/connections",
-              "sdk/reference/views",
-              "sdk/reference/tokens",
-              "sdk/reference/members",
-              "sdk/reference/oauth",
-              "sdk/reference/filesystem",
-              "sdk/reference/errors"
-            ]
           }
         ]
       }
@@ -92,7 +70,7 @@
       "anchors": [
         {
           "anchor": "GitHub",
-          "href": "https://github.com/beam-cloud/airstore",
+          "href": "https://github.com/beam-cloud/capsule",
           "icon": "github"
         }
       ]
@@ -101,13 +79,13 @@
   "navbar": {
     "primary": {
       "type": "button",
-      "label": "Get Started",
-      "href": "https://app.airstore.ai"
+      "label": "Repository",
+      "href": "https://github.com/beam-cloud/capsule"
     }
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/beam-cloud/airstore"
+      "github": "https://github.com/beam-cloud/capsule"
     }
   }
 }

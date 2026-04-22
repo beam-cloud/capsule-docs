@@ -1,135 +1,135 @@
 ---
 title: "Quickstart"
-description: "Get Airstore running in 5 minutes"
+description: "Build and run a minimal Capsule app in a few minutes."
 ---
 
-This guide covers connecting a service, creating a source view, and using it with Claude Code.
+This guide is intentionally small. The goal is not to show every Capsule feature. The goal is to get one app running end to end so the rest of the docs have something concrete to build on.
 
-<Note>
-This guide is for **Airstore Cloud** (recommended for most users). For self-hosted deployments, see [Local Deployment](/deployment/local).
-</Note>
+By the end you will have:
 
-## 1. Sign up
+- a local Capsule app
+- a working message handler
+- one small piece of session state
+- a successful deploy
 
-Go to [app.airstore.ai](https://app.airstore.ai) and create an account.
+## 1. Create `app.py`
 
-## 2. Connect a service
+```python
+import cpsl
 
-In the dashboard, go to **Settings → Integrations** and connect a service:
+app = cpsl.App(
+    name="hello-capsule",
+    image=cpsl.Image(),
+)
 
-![Connect an integration](/images/connect-integration.png)
 
-Available integrations:
-
-- **GitHub** - Access PRs, issues, and code
-- **Gmail** - Access emails
-- **Google Drive** - Access documents and files
-- **Linear** - Access issues and projects
-- **Notion** - Access pages and databases
-- **Slack** - Access messages
-- **PostHog** - Access analytics events, feature flags, insights, and cohorts
-
-Most integrations use OAuth—you'll authorize Airstore to access your data.
-PostHog uses an API key instead ([setup guide](/guides/posthog)). Your source data is never stored in our system; we only cache query results for fast reads.
-
-## 3. Create a source view
-
-Click **New View** and describe what you want in natural language (smart mode):
-
-![Create a source view](/images/create-smart-folder.png)
-
-For example, name it "design issues" with guidance like "all issues related to design or frontend UX". View names are converted to URL-safe slugs (e.g., "design issues" becomes `design-issues`).
-
-Other example queries:
-
-- "Open PRs in acme/api that need review"
-- "Invoices I received in email last week"
-- "Contracts in Drive pending signature"
-
-You can also switch to **query mode** for precise, structured filters — like filtering GitHub by repo, state, and content type. See [Source Views](/concepts/source-views) for details.
-
-Airstore executes the query and creates a folder containing the matching files.
-
-![Source view results](/images/smart-folder-results.png)
-
-## 4. Install the CLI
-
-```bash
-curl -sSL https://airstore.dev/install.sh | sh
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(
+        f"Hello {session.user.email or 'there'}.\n\n"
+        f"You said: {msg.text}"
+    )
 ```
 
-You'll also need FUSE for filesystem mounting:
+This is the functional style, which is the easiest place to start.
+
+- `App(...)` defines the runtime and deploy config
+- `image=cpsl.Image()` says the app should run in a default Python environment
+- `@app.message()` registers the chat handler
+- `session.reply()` sends a message back to the user
+
+If you are wondering why `image=` is required here: in functional apps, `App(...)` needs to know the runtime environment up front. In class-based apps, that same information lives on `@app.cls(...)` instead.
+
+## 2. Start the local dev loop
 
 ```bash
-# macOS
-brew install fuse-t
-
-# Ubuntu/Debian
-sudo apt install fuse3
+capsule serve app:app
 ```
 
-## 5. Authenticate
+`app:app` means:
+
+- module: `app.py`
+- symbol: `app`
+
+`capsule serve` uploads the project, boots the runtime, and hot-reloads when you edit watched files such as Python, TSX, CSS, JSON, and Markdown.
+
+If this is your first time using Capsule on this machine, you may need to run `capsule login` first.
+
+## 3. Talk to the app
+
+Open the local preview from the `capsule serve` output and send a message in chat.
+
+Try editing the handler and saving the file:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    session.data["last_message"] = msg.text
+    await session.reply(
+        f"Last message saved for session {session.id[:8]}.\n"
+        f"Current text: {msg.text}"
+    )
+```
+
+Now the app is doing something slightly more useful:
+
+- `session.data` stores per-conversation state
+- `session.id` gives you a stable session identifier
+- saving the file should cause the local preview to pick up the change
+
+At this point you have already seen the two most common Capsule building blocks: a message handler and session state.
+
+If you want to inspect the current conversation state more directly, try this version:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    session.data.setdefault("messages", []).append(msg.text)
+
+    await session.reply(
+        "Stored messages:\n" +
+        "\n".join(f"- {text}" for text in session.data["messages"])
+    )
+```
+
+## 4. Deploy it
+
+When the local version looks good:
 
 ```bash
-airstore login
+capsule deploy app:app
 ```
 
-This opens your browser to authenticate. Once complete, you're ready to mount.
+Deploy packages the same app definition you just served locally and sends it to Capsule. The deploy output includes the hosted URL for the app.
 
-## 6. Mount the filesystem
+In other words, you are not maintaining a separate deployment config somewhere else. The Python code is the source of truth.
 
-```bash
-airstore mount ~/airstore
+## 5. Add the next feature
+
+From here, most apps branch into one or more of these directions:
+
+- collections for durable data and tables
+- data handlers for computed JSON
+- DSL or React pages for structured UI
+- tasks and schedules for asynchronous work
+- integrations and secrets for external systems
+
+A common next step is to add a page so the app is not chat-only anymore:
+
+```python
+@app.page("Status", icon="layout-dashboard")
+def status_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Hello from Capsule", style="heading"),
+            cpsl.ui.Text("This is your first page.", style="muted"),
+        ]
+    )
 ```
 
-Your source views are now available as local directories. For example, if you connected Linear and created a "design issues" view:
+## Where to go next
 
-```bash
-ls ~/airstore/linear/design-issues/
-# AGE-71_Spike_Figure_out_chat_UX.md
-# AGE-57_Table_layout_gets_cut_off_sometimes.md
-# AGE-22_Add_input_validation_on_Create_Workspace.md
-```
-
-## 7. Use with Claude Code
-
-```bash
-cd ~/airstore
-claude
-```
-
-Claude can read your source view. Ask it to summarize or analyze the files you just mounted.
-
-Press `Ctrl+C` in the terminal running the mount command to unmount when you're done.
-
-## Invite your team
-
-Workspaces can be shared with your team. Go to **Settings → Workspace** to invite members.
-
-![Invite team members](/images/invite-team.png)
-
-Team members can access the same integrations and source views from their own machines.
-
-## What's happening
-
-When you read a file:
-
-1. The FUSE layer intercepts the read
-2. Airstore fetches the data from the cached source view
-3. The file contents are returned
-
-Reads are fast because source views are pre-materialized. Claude reads files just like it would with local code.
-
-## Next steps
-
-<CardGroup cols={2}>
-
-<Card title="How it works" icon="diagram-project" href="/concepts/how-it-works">
-  Understand the architecture.
-</Card>
-
-<Card title="CLI reference" icon="terminal" href="/reference/cli">
-  Full command reference.
-</Card>
-
-</CardGroup>
+- [First Chat App](/tutorials/first-chat-app) for a fuller message-driven app
+- [Collections And Scopes](/tutorials/collections-and-scopes) for persisted data
+- [Data Handlers And Pages](/tutorials/data-handlers-and-pages) for dashboards and UI
+- [CLI Reference](/reference/cli) for the full command surface

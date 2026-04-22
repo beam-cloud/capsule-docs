@@ -1,0 +1,192 @@
+---
+title: "Decorators"
+description: "Reference for lifecycle, message, task, schedule, endpoint, and ASGI decorators."
+---
+
+Capsule decorators fall into two families:
+
+- **functional app decorators** called on `app`
+- **class-based decorators** imported from `cpsl`
+
+## Functional app decorators
+
+These require `app = cpsl.App(..., image=cpsl.Image(), ...)`.
+
+| Decorator | Purpose |
+| --- | --- |
+| `@app.boot()` | Run once when the runtime starts |
+| `@app.shutdown()` | Run when the runtime is shutting down |
+| `@app.enter()` | Run when a new session is created |
+| `@app.exit()` | Run when a session closes |
+| `@app.message()` | Handle inbound messages |
+| `@app.task(...)` | Register a background task |
+| `@app.schedule(cron)` | Register a cron job |
+| `@app.endpoint(...)` | Register an HTTP endpoint |
+| `@app.asgi(path=...)` | Mount an ASGI app |
+
+## Class-based decorators
+
+When you use `@app.cls(...)`, the handler methods use the global decorator versions:
+
+- `@cpsl.boot()`
+- `@cpsl.shutdown()`
+- `@cpsl.enter()`
+- `@cpsl.exit()`
+- `@cpsl.message()`
+- `@cpsl.task(...)`
+- `@cpsl.schedule(cron)`
+- `@cpsl.endpoint(...)`
+- `@cpsl.asgi(path=...)`
+
+## Lifecycle hooks
+
+### `boot()`
+
+Runs once when the runtime starts.
+
+```python
+@app.boot()
+async def on_boot():
+    print("ready")
+```
+
+### `shutdown()`
+
+Runs during runtime shutdown. Good for cleanup and flush logic.
+
+```python
+@app.shutdown()
+async def on_shutdown():
+    print("cleaning up")
+```
+
+### `enter()`
+
+Runs when a new session is created. Receives `session`.
+
+```python
+@app.enter()
+async def on_enter(session: cpsl.Session):
+    session.data["started"] = True
+```
+
+### `exit()`
+
+Runs when a session closes.
+
+```python
+@app.exit()
+async def on_exit(session: cpsl.Session):
+    print(f"closing {session.id}")
+```
+
+## `message()`
+
+Registers the main inbound handler.
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(msg.text)
+```
+
+For most apps, this is the main entry point.
+
+## `task(...)`
+
+Registers a background task and turns the function into a `TaskDescriptor`.
+
+### Arguments
+
+| Argument | Meaning |
+| --- | --- |
+| `retries` | Max retry attempts |
+| `timeout` | Task timeout in seconds |
+| `lock` | Lock template like `"user:{user_id}"` |
+| `retry_for` | Exception types that should retry |
+| `callback_url` | URL to POST completion/failure payloads to |
+| `process` | Run in a separate OS process |
+
+### Example
+
+```python
+@app.task(retries=2, timeout=60)
+async def generate_report(session: cpsl.Session | None = None, report_id: str = ""):
+    ...
+```
+
+Submitting it looks like this:
+
+```python
+handle = await generate_report.submit(session=session, report_id="daily")
+await session.show_task(handle, message="Generating report...")
+```
+
+After decoration, the task object supports:
+
+- `.submit(...)`
+- `.schedule(...)`
+- `.find(...)`
+- `.count(...)`
+- `.cancel(...)`
+
+## `schedule(cron)`
+
+Registers a cron handler.
+
+```python
+@app.schedule("*/5 * * * *")
+async def every_five_minutes():
+    ...
+```
+
+The cron string is standard 5-field cron syntax in UTC.
+
+A useful pattern is to keep the schedule thin and hand work off to a task:
+
+```python
+@app.schedule("0 * * * *")
+async def hourly_sync():
+    await sync_index.submit()
+```
+
+## `endpoint(method="GET", path="/", authorized=True)`
+
+Registers a plain HTTP handler.
+
+```python
+@app.endpoint(method="POST", path="/webhook", authorized=False)
+async def webhook(ctx: cpsl.RequestContext):
+    ...
+```
+
+Use `authorized=False` for public webhooks.
+
+In a real handler you would usually inspect `ctx.request` or just return structured data:
+
+```python
+@app.endpoint(method="GET", path="/health", authorized=False)
+async def health(ctx: cpsl.RequestContext):
+    return {"ok": True}
+```
+
+## `asgi(path="/app")`
+
+Mounts a full ASGI application such as FastAPI or Starlette.
+
+```python
+from fastapi import FastAPI
+
+api = FastAPI()
+
+
+@app.asgi(path="/api")
+def api_app():
+    return api
+```
+
+## See also
+
+- [App API Reference](/reference/app-api)
+- [Tasks And Scheduling](/concepts/tasks-and-scheduling)
+- [Session And Request Context Reference](/reference/session-and-request-context)

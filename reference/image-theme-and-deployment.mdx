@@ -1,0 +1,176 @@
+---
+title: "Image, Theme, And Deployment"
+description: "Reference for runtime images, theming, filesystem mounts, pricing, and deploy configuration."
+---
+
+## `Image`
+
+`cpsl.Image` defines the runtime environment for your app. If the app needs Python packages, system packages, or setup commands, this is where they go.
+
+### Constructor
+
+```python
+image = cpsl.Image(
+    python_packages=["openai", "numpy"],
+    apt_packages=["ffmpeg"],
+    commands=["python -m spacy download en_core_web_sm"],
+)
+```
+
+You can also build it up incrementally:
+
+```python
+image = (
+    cpsl.Image()
+    .add_python_packages(["openai", "numpy"])
+    .add_apt_packages(["ffmpeg"])
+    .add_commands(["python -m spacy download en_core_web_sm"])
+)
+```
+
+### Methods
+
+| Method | Purpose |
+| --- | --- |
+| `add_python_packages(packages)` | Add Python packages or load from a requirements file |
+| `add_apt_packages(packages)` | Add apt packages |
+| `add_commands(commands)` | Add shell commands to run during setup |
+
+`python_packages` can be a list or a path to `requirements.txt`.
+
+## `Theme`
+
+Configure app branding with `app.theme(...)`.
+
+Most apps do not need a fully custom theme. A preset plus a few overrides is usually enough:
+
+```python
+app.theme(
+    preset="midnight",
+    accent="#A78BFA",
+    font_sans="DM Sans, sans-serif",
+    font_mono="DM Mono, monospace",
+)
+```
+
+### Presets
+
+Built-in presets:
+
+- `dark`
+- `light`
+- `midnight`
+- `warm`
+
+### Common theme fields
+
+| Field | Meaning |
+| --- | --- |
+| `preset` | Starting palette |
+| `logo` | Path or URL to a logo |
+| `logo_background` | Background behind the logo |
+| `tagline` | Sidebar subtitle |
+| `primary` | Main interactive color |
+| `accent` | Accent color |
+| `background` | Page background |
+| `foreground` | Main text color |
+| `sidebar` | Sidebar background |
+| `surface` | Cards and panels |
+| `border` | Borders and dividers |
+| `muted` | Secondary text |
+| `danger` | Error/destructive color |
+| `success` | Success color |
+| `font_sans` | Body font family |
+| `font_mono` | Code/data font family |
+| `radius` | `sm`, `md`, or `lg` |
+
+## `FileSystem`
+
+Use `cpsl.FileSystem("name")` to mount named durable storage into the runtime:
+
+```python
+app = cpsl.App(
+    name="reports",
+    image=cpsl.Image(),
+    filesystems={"/data": cpsl.FileSystem("reports")},
+)
+```
+
+The key is the mount path inside the runtime. The value is the named filesystem resource in the workspace.
+
+Once mounted, you can use it like a normal path:
+
+```python
+with open("/data/summary.txt", "w") as f:
+    f.write("hello from capsule\n")
+```
+
+## Deployment-related app knobs
+
+### Pricing
+
+Capsule uses cents for pricing:
+
+```python
+app = cpsl.App(
+    name="infra-analyst",
+    image=cpsl.Image(),
+    price=500,
+    pricing_type="monthly",
+)
+```
+
+Valid pricing types:
+
+- `one_time`
+- `monthly`
+
+### Warm runtimes
+
+```python
+app = cpsl.App(
+    name="fast-agent",
+    image=cpsl.Image(),
+    keep_warm_seconds=30,
+)
+```
+
+This asks Capsule to keep the runtime warm for a short period after activity.
+
+### Secrets and filesystems
+
+These are deployment config, not runtime afterthoughts:
+
+```python
+app = cpsl.App(
+    name="secure-agent",
+    image=cpsl.Image(),
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("reports")},
+)
+```
+
+That same app could also set a theme, pages, tasks, and integrations. There is no separate deployment manifest hiding elsewhere.
+
+## Class-based deploy config
+
+For class-based apps, the deploy-specific knobs live on `@app.cls(...)` instead of the `App(...)` constructor:
+
+```python
+@app.cls(
+    image=cpsl.Image(),
+    price=500,
+    pricing_type="monthly",
+    keep_warm_seconds=30,
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("reports")},
+)
+class MyApp:
+    ...
+```
+
+## See also
+
+- [React Pages And Theme](/tutorials/react-pages-and-theme)
+- [Integrations, Secrets, And Filesystems Tutorial](/tutorials/integrations-secrets-and-filesystems)
+- [CLI Reference](/reference/cli)

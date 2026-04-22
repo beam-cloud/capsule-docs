@@ -1,0 +1,281 @@
+---
+title: "Collections And Scopes"
+description: "Use Capsule collections for durable app, user, owner, and session data."
+---
+
+Collections are Capsule's persistent document store. They are the right tool when you need durable state, table views, filtering, pagination, or CRUD from handlers.
+
+This tutorial shows how to:
+
+- declare typed collections
+- choose the right scope
+- write and query documents
+- bind a collection directly to a table page
+
+## 1. Declare collections
+
+Start with a few collections at different scopes:
+
+```python
+import cpsl
+import datetime
+
+app = cpsl.App(name="collections-demo", image=cpsl.Image())
+
+contacts = app.collection(
+    "contacts",
+    columns=[
+        cpsl.Column("name"),
+        cpsl.Column("email", type="email"),
+        cpsl.Column("website", type="link"),
+        cpsl.Column("status", type="status"),
+    ],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=20,
+)
+
+bookmarks = app.collection(
+    "bookmarks",
+    columns=["title", "url", "saved_at"],
+    scope="user",
+    sortable=True,
+    paginate=10,
+)
+
+scratchpad = app.collection(
+    "scratchpad",
+    columns=["note", "created_at"],
+    scope="session",
+    paginate=20,
+)
+
+reports = app.collection(
+    "reports",
+    columns=["timestamp", "summary"],
+    scope="owner",
+)
+```
+
+Use scopes like this:
+
+| Scope | Use it for |
+| --- | --- |
+| `app` | Shared app-wide data such as catalogs, queues, or public records |
+| `user` | Per-user saved items, preferences, or private resources |
+| `owner` | Data shared across an organization or account owner |
+| `session` | Scratch state tied to one conversation |
+
+## 2. Add a collection-backed page
+
+`ui.Table(collection_ref)` is the fastest way to expose a collection in the UI:
+
+```python
+@app.page("Contacts", icon="users", access="authenticated")
+def contacts_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Contacts", style="heading"),
+            cpsl.ui.Text("Shared app-scoped records.", style="muted"),
+            cpsl.ui.Divider(),
+            cpsl.ui.Table(contacts),
+        ]
+    )
+```
+
+Passing the `CollectionRef` directly lets the table inherit:
+
+- column definitions
+- sortability
+- filterability
+- pagination defaults
+
+## 3. Write from a handler
+
+Use the collection ref directly in handlers:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+
+    if text.startswith("add "):
+        try:
+            name, email, website = [part.strip() for part in text[4:].split(",", 2)]
+        except ValueError:
+            await session.reply("Use: add name, email, website")
+            return
+
+        created = await contacts.insert_one(
+            {
+                "name": name,
+                "email": email,
+                "website": website,
+                "status": "active",
+            }
+        )
+        await session.reply(f"Added {created['name']} with id={created['id']}")
+        return
+```
+
+`insert_one()` and `insert_many()` return documents with both `_id` and `id`.
+
+## 4. Use `session.db` for scoped collections
+
+`session.db` is the most ergonomic way to work with scoped collections inside a live session:
+
+```python
+    if text.startswith("bookmark "):
+        title, url = [part.strip() for part in text[9:].split(",", 1)]
+        await session.db.bookmarks.insert_one(
+            {
+                "title": title,
+                "url": url,
+                "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        total = await session.db.bookmarks.count()
+        await session.reply(f"Saved bookmark. You now have {total} bookmarks.")
+        return
+
+    if text.startswith("note "):
+        note = text[5:].strip()
+        await session.db.scratchpad.insert_one(
+            {
+                "note": note,
+                "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        await session.reply("Saved to the session scratchpad.")
+        return
+```
+
+Use direct refs like `contacts` for app-scoped collections. Use `session.db.<name>` when you want the runtime to inject user, owner, or session filters automatically.
+
+## 5. Query and update documents
+
+Collections support the usual CRUD operations:
+
+```python
+active = await contacts.find({"status": "active"}, limit=25, sort={"name": 1})
+first = await contacts.find_one({"email": "alice@example.com"})
+count = await contacts.count()
+await contacts.delete_one({"_id": first["_id"]})
+```
+
+Updates are slightly nicer than raw Mongo because plain dicts become `$set` patches automatically:
+
+```python
+await contacts.update_one({"_id": contact_id}, {"status": "inactive"})
+```
+
+If you need a raw operator document, pass it explicitly:
+
+```python
+await contacts.update_one({"_id": contact_id}, {"$inc": {"touches": 1}})
+```
+
+Do not mix plain keys and operator keys in the same update document.
+
+## 6. Full example
+
+```python
+import cpsl
+import datetime
+
+app = cpsl.App(name="collections-demo", image=cpsl.Image())
+
+contacts = app.collection(
+    "contacts",
+    columns=[
+        cpsl.Column("name"),
+        cpsl.Column("email", type="email"),
+        cpsl.Column("website", type="link"),
+        cpsl.Column("status", type="status"),
+    ],
+    scope="app",
+    sortable=True,
+    filterable=True,
+    paginate=20,
+)
+
+bookmarks = app.collection(
+    "bookmarks",
+    columns=["title", "url", "saved_at"],
+    scope="user",
+    sortable=True,
+    paginate=10,
+)
+
+scratchpad = app.collection(
+    "scratchpad",
+    columns=["note", "created_at"],
+    scope="session",
+    paginate=20,
+)
+
+
+@app.page("Contacts", icon="users", access="authenticated")
+def contacts_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Contacts", style="heading"),
+            cpsl.ui.Divider(),
+            cpsl.ui.Table(contacts),
+        ]
+    )
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+
+    if text.startswith("add "):
+        name, email, website = [part.strip() for part in text[4:].split(",", 2)]
+        created = await contacts.insert_one(
+            {
+                "name": name,
+                "email": email,
+                "website": website,
+                "status": "active",
+            }
+        )
+        await session.reply(f"Added {created['name']} ({created['id']})")
+        return
+
+    if text.startswith("bookmark "):
+        title, url = [part.strip() for part in text[9:].split(",", 1)]
+        await session.db.bookmarks.insert_one(
+            {
+                "title": title,
+                "url": url,
+                "saved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        await session.reply("Saved bookmark.")
+        return
+
+    if text.startswith("note "):
+        await session.db.scratchpad.insert_one(
+            {
+                "note": text[5:].strip(),
+                "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        await session.reply("Saved note.")
+        return
+
+    await session.reply(
+        "Commands:\n"
+        "- add name, email, website\n"
+        "- bookmark title, url\n"
+        "- note text"
+    )
+```
+
+## Next steps
+
+- Use collections and computed JSON together in [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- Build custom React views with [React Pages And Theme](/tutorials/react-pages-and-theme)
+- See [Collections And Settings Reference](/reference/collections-and-settings) for the full CRUD API and scope rules

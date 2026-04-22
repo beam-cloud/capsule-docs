@@ -1,0 +1,193 @@
+---
+title: "UI And Pages"
+description: "Reference for DSL page widgets, React page registration, and page-building patterns."
+---
+
+## Page registration
+
+Capsule supports two ways to register pages.
+
+### Python DSL pages
+
+```python
+@app.page("Overview", icon="layout-dashboard", access="authenticated")
+def overview():
+    return cpsl.ui.Page([...])
+```
+
+Arguments:
+
+| Argument | Meaning |
+| --- | --- |
+| `name` | Sidebar label |
+| `icon` | Icon name |
+| `order` | Explicit page ordering |
+| `access` | `"public"` or `"authenticated"` |
+
+Example:
+
+```python
+@app.page("Overview", icon="layout-dashboard")
+def overview():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Overview", style="heading"),
+            cpsl.ui.Metric("Open tasks", value=12),
+        ]
+    )
+```
+
+### React pages
+
+```python
+app.add_page(
+    "Dashboard",
+    icon="chart-column",
+    component="pages/dashboard.tsx",
+    packages=["lightweight-charts@4.2.0"],
+    access="authenticated",
+)
+```
+
+Arguments:
+
+| Argument | Meaning |
+| --- | --- |
+| `name` | Sidebar label |
+| `icon` | Icon name |
+| `component` | Path to the TSX component |
+| `packages` | Extra npm packages for the page bundle |
+| `order` | Explicit page ordering |
+| `access` | `"public"` or `"authenticated"` |
+
+Example:
+
+```python
+app.add_page(
+    "Custom View",
+    icon="code",
+    component="pages/custom_view.tsx",
+    packages=["lucide-react@0.344.0"],
+    access="authenticated",
+)
+```
+
+## DSL widgets
+
+The Python DSL is deliberately small. You compose a page from a few primitives rather than learning a big UI framework.
+
+### Layout
+
+| Widget | Purpose |
+| --- | --- |
+| `cpsl.ui.Page(children)` | Root page container |
+| `cpsl.ui.Row(children)` | Horizontal grouping |
+| `cpsl.ui.Column(children)` | Vertical grouping |
+| `cpsl.ui.Card(title=None, children=None)` | Card wrapper |
+| `cpsl.ui.Divider()` | Visual separator |
+| `cpsl.ui.Text(content, style=None)` | Text element |
+
+### Data display
+
+| Widget | Purpose |
+| --- | --- |
+| `Metric(...)` | KPI or summary stat |
+| `Table(...)` | Table from collection, data source, or inline rows |
+| `Chart(...)` | Chart from a data source |
+
+### Settings widgets
+
+| Widget | Purpose |
+| --- | --- |
+| `Toggle(label, setting=...)` | Boolean setting |
+| `TextInput(label, setting=..., multiline=False, placeholder=None)` | String setting |
+| `NumberInput(label, setting=..., min=None, max=None, step=None)` | Numeric setting |
+| `Select(label, setting=...)` | Setting with predefined options |
+
+### Task UI
+
+| Widget | Purpose |
+| --- | --- |
+| `TaskBoard(...)` | Kanban-style task board |
+| `TaskBoardColumn(label, statuses)` | Custom task-board column group |
+
+Here is a compact DSL page that uses several of these widgets together:
+
+```python
+@app.page("Dashboard", icon="layout-dashboard")
+def dashboard():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Row(
+                [
+                    cpsl.ui.Metric("Open", value=12),
+                    cpsl.ui.Metric("Completed", value=4),
+                ]
+            ),
+            cpsl.ui.Divider(),
+            cpsl.ui.Table(
+                rows=[
+                    {"title": "Import leads", "status": "done"},
+                    {"title": "Generate report", "status": "running"},
+                ],
+                columns=["title", "status"],
+            ),
+        ]
+    )
+```
+
+## Widget notes
+
+- `Metric` can display a literal `value` or bind to `data` plus `field`.
+- `Table` can bind to a collection, a data handler, or inline `rows`.
+- `Chart` binds to a named data source and supports `line`, `bar`, `pie`, `scatter`, and `area`.
+- Passing a `CollectionRef` to `Table(...)` lets Capsule inherit collection metadata automatically.
+
+## React page runtime
+
+The example apps use `@capsule/page` helpers such as:
+
+- `useData(...)`
+- `useCollection(...)`
+- `useTheme()`
+- `useCapsule()`
+
+Common pattern:
+
+```tsx
+import { useCapsule, useCollection, useData, useTheme } from "@capsule/page"
+```
+
+Example:
+
+```tsx
+import { useCollection, useData, useTheme } from "@capsule/page"
+
+export default function Dashboard() {
+  const theme = useTheme()
+  const stats = useData("stats")
+  const contacts = useCollection("contacts", { pageSize: 10 })
+
+  return (
+    <div style={{ color: theme.color.foreground }}>
+      <h2>Open tasks: {stats.data?.open_tasks ?? "-"}</h2>
+      <p>Rows: {contacts.total ?? 0}</p>
+    </div>
+  )
+}
+```
+
+React pages are the right choice when you need custom interactivity or external packages. The Python DSL is usually faster when metrics, tables, charts, and settings widgets are enough.
+
+## Naming pitfall
+
+Do not confuse:
+
+- `cpsl.Column` for collection schema
+- `cpsl.ui.Column` for page layout
+
+## See also
+
+- [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- [React Pages And Theme](/tutorials/react-pages-and-theme)
+- [App API Reference](/reference/app-api)

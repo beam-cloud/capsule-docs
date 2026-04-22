@@ -1,0 +1,111 @@
+---
+title: "App Styles"
+description: "Choose between Capsule's functional and class-based authoring styles."
+---
+
+Capsule supports two authoring styles:
+
+- **functional**: handlers are registered directly on `app`
+- **class-based**: handlers live on a class decorated with `@app.cls(...)`
+
+Both compile down to the same core runtime concepts. The important rule is that you do not mix them in one app.
+
+## Functional style
+
+Functional apps declare the runtime at `App(...)` construction time:
+
+```python
+import cpsl
+
+app = cpsl.App(
+    name="hello",
+    image=cpsl.Image(),
+)
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"Echo: {msg.text}")
+```
+
+Use the functional style when:
+
+- you want the smallest, clearest app shape
+- most logic is stateless or organized into helper functions
+- you prefer top-level decorators like `@app.message()` and `@app.task()`
+
+## Class-based style
+
+Class-based apps put handlers on a runtime class:
+
+```python
+import cpsl
+
+app = cpsl.App(name="hello")
+
+
+@app.cls(image=cpsl.Image())
+class HelloApp:
+    @cpsl.message()
+    async def handle(self, session: cpsl.Session, msg: cpsl.Message):
+        await session.reply(f"Echo: {msg.text}")
+```
+
+Use the class-based style when:
+
+- instance state on `self` is helpful
+- you want a more object-oriented organization
+- you prefer class-local boot/message/task methods
+
+## Do not mix the styles
+
+These combinations are invalid:
+
+- `App(..., image=...)` plus `@app.cls(...)`
+- `@app.message()` plus class methods decorated with `@cpsl.message()`
+
+Pick one style per app.
+
+## Decorator mapping
+
+| Functional | Class-based |
+| --- | --- |
+| `@app.boot()` | `@cpsl.boot()` |
+| `@app.shutdown()` | `@cpsl.shutdown()` |
+| `@app.enter()` | `@cpsl.enter()` |
+| `@app.exit()` | `@cpsl.exit()` |
+| `@app.message()` | `@cpsl.message()` |
+| `@app.task()` | `@cpsl.task()` |
+| `@app.schedule()` | `@cpsl.schedule()` |
+| `@app.endpoint()` | `@cpsl.endpoint()` |
+| `@app.asgi()` | `@cpsl.asgi()` |
+
+## Shared features across both styles
+
+No matter which style you pick, these APIs stay the same:
+
+- `app.collection(...)`
+- `app.setting(...)`
+- `app.theme(...)`
+- `app.add_page(...)`
+- `app.page(...)`
+- `app.data(...)`
+- `app.add_integration(...)`
+
+Those declarations happen on `app`, not on the class.
+
+## Choosing a default
+
+For most new docs and examples, the functional style is the best default because:
+
+- it is shorter
+- it makes the deploy config explicit on `App(...)`
+- it reads well in tutorials
+
+The class-based style is still useful and fully supported, especially for apps that benefit from instance methods and mutable runtime state.
+
+## Related pages
+
+- [App Model And Runtime](/concepts/app-model-and-runtime)
+- [Decorators Reference](/reference/decorators)
+- [App API Reference](/reference/app-api)

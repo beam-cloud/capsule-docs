@@ -1,0 +1,227 @@
+---
+title: "Session And Request Context"
+description: "Reference for `Session`, `RequestContext`, messages, uploads, blocks, and runtime helpers."
+---
+
+## `Session`
+
+`Session` is the main runtime context for chat and API interactions. If your handler needs to know "who is talking?", "what happened earlier?", or "where should I send the reply?", the answer is usually on `Session`.
+
+### Core fields
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Unique session id |
+| `user` | `UserInfo` for the current user |
+| `channel` | `SessionChannel` describing the transport |
+| `history` | Recent message history |
+| `data` | Per-session persistent key-value store |
+| `integrations` | Connected runtime credentials |
+| `db` | Scoped database proxy for collection access |
+
+Small example:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(
+        f"session={session.id[:8]} "
+        f"user={session.user.email or 'anon'} "
+        f"text={msg.text}"
+    )
+```
+
+### Common methods
+
+| Method | Purpose |
+| --- | --- |
+| `await reply(text)` | Send a complete response |
+| `await notify(text)` | Send a lightweight status update |
+| `await stream(chunks)` | Pipe an async iterator of strings |
+| `stream_reply()` | Open a streaming reply context manager |
+| `await stream_reply_from(stream)` | Pipe a model stream and return the final text |
+| `chat_messages(current, cls=None)` | Build merged user/assistant chat history |
+| `await show(block)` | Render a structured block |
+| `await show_task(handle_or_id, message=None)` | Show a live task card |
+| `await show_integration(type, reason="")` | Show a non-blocking integration card |
+| `await show_image(source, alt="", width=None)` | Render an image inline |
+| `await prompt_file(...)` | Block until the user uploads a file |
+| `await prompt_integration(...)` | Block until the user connects an integration |
+
+## Streaming helpers
+
+### `stream_reply()`
+
+```python
+async with session.stream_reply() as reply:
+    reply.write("Starting...\n")
+    reply.write("More text...\n")
+```
+
+The accumulated text is written to session history when the context exits, which means a streaming response still becomes part of the conversation record.
+
+### `stream_reply_from(stream)`
+
+```python
+full_text = await session.stream_reply_from(model_stream)
+```
+
+This is the one-liner for async model streams such as BAML outputs. In practice it saves you from rewriting the same `async with session.stream_reply()` loop over and over.
+
+## Structured UI helpers
+
+The `Session` object is also how chat handlers render richer UI.
+
+### `show_task(...)`
+
+```python
+handle = await build_report.submit(session=session, report_id="daily")
+await session.show_task(handle, message="Building report...")
+```
+
+### `show_integration(...)`
+
+```python
+await session.show_integration(
+    "github",
+    reason="Connect GitHub to unlock repository analysis",
+)
+```
+
+### `prompt_file(...)`
+
+```python
+upload = await session.prompt_file(
+    message="Upload a CSV export",
+    accept=".csv,text/csv",
+)
+await session.reply(f"Received {upload.name}")
+```
+
+## `RequestContext`
+
+Use `RequestContext` in `@app.data()` and `@app.endpoint()` handlers when you need caller metadata outside chat.
+
+### Fields
+
+| Field | Meaning |
+| --- | --- |
+| `user` | `UserInfo` for the caller |
+| `integrations` | Connected integrations available to the caller |
+| `authenticated` | Boolean auth state |
+| `request` | Underlying request object when available |
+
+Example:
+
+```python
+@app.data("stats", access="authenticated")
+def get_stats(ctx: cpsl.RequestContext):
+    return {"viewer": ctx.user.email}
+```
+
+If a page or endpoint needs to know who is calling it, `RequestContext` is the right abstraction. If a chat turn needs to know who is calling it, you already have `Session`.
+
+## Messages and attachments
+
+### `Message`
+
+| Field | Meaning |
+| --- | --- |
+| `text` | Message body |
+| `sender` | `"user"` or `"app"` |
+| `channel_type` | Transport type |
+| `timestamp` | Unix epoch seconds |
+| `attachments` | Optional list of `Attachment` |
+
+Example:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    if msg.attachments:
+        first = msg.attachments[0]
+        await session.reply(f"First attachment: {first.name} ({first.content_type})")
+        return
+```
+
+### `Attachment`
+
+`Attachment` represents a file attached to a user message.
+
+Useful fields:
+
+- `name`
+- `content_type`
+- `url`
+- `size`
+
+Use `await attachment.download(path)` to save it locally.
+
+## Blocks and uploads
+
+### `Block`
+
+`Block(type, payload)` is the low-level structured UI primitive used by helpers like `show_task()` and `show_integration()`.
+
+If you are writing normal app code, prefer the higher-level helpers first. Reach for raw `Block(...)` only when you need a custom block type.
+
+### `FileUpload`
+
+Returned by `prompt_file(...)`.
+
+Useful fields:
+
+- `name`
+- `content_type`
+- `url`
+- `size`
+- `path` when auto-downloaded
+
+Use `await upload.download(path)` if you want to save it manually.
+
+## Identity types
+
+### `UserInfo`
+
+Common fields:
+
+- `id`
+- `email`
+- `org_id`
+- `owner_id` property for owner-scoped runtime identity
+
+### `SessionChannel`
+
+Describes the transport, such as chat or Telegram.
+
+## Exceptions
+
+These are part of the public session-facing API:
+
+- `IntegrationTimeout`
+- `IntegrationDeclined`
+- `FileUploadTimeout`
+
+## `current_session()`
+
+```python
+runtime_session = cpsl.current_session()
+```
+
+Returns the active runtime `Session` when one exists. In scheduled handlers and some background contexts, this may be a synthetic session with identity and integrations but no live reply target.
+
+Example:
+
+```python
+@app.schedule("0 * * * *")
+async def hourly_job():
+    session = cpsl.current_session()
+    owner = session.user.owner_id if session else "unknown"
+    print(f"running for owner={owner}")
+```
+
+## See also
+
+- [First Chat App](/tutorials/first-chat-app)
+- [Tasks And Schedules](/tutorials/tasks-and-schedules)
+- [Channels, Integrations, And Secrets Reference](/reference/channels-integrations-and-secrets)
