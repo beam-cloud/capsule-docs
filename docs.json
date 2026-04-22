@@ -8,6 +8,17 @@
     "dark": "#1A1D21"
   },
   "favicon": "/favicon.svg",
+  "fonts": {
+    "family": "DM Sans",
+    "heading": {
+      "family": "DM Sans",
+      "weight": 600
+    },
+    "body": {
+      "family": "DM Sans",
+      "weight": 400
+    }
+  },
   "navigation": {
     "tabs": [
       {
