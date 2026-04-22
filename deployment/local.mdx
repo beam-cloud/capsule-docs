@@ -1,0 +1,165 @@
+---
+title: "Deploy Airstore Locally"
+description: "Run Airstore on your local machine"
+---
+
+Mount Airstore locally for development and personal use.
+
+## Quick start
+
+```bash
+airstore mount ~/airstore --config config.local.yaml
+```
+
+Your tools are now available at `~/airstore/tools/`.
+
+## Prerequisites
+
+### 1. Install FUSE
+
+<CodeGroup>
+
+```bash macOS
+# Install FUSE-T
+brew install fuse-t
+```
+
+```bash Ubuntu/Debian
+sudo apt install fuse3
+```
+
+```bash Fedora
+sudo dnf install fuse3
+```
+
+```bash Arch
+sudo pacman -S fuse3
+```
+
+</CodeGroup>
+
+### 2. Install Node.js (for npx)
+
+Most MCP servers are distributed via npm and run with `npx`:
+
+```bash
+# macOS
+brew install node
+
+# Ubuntu/Debian
+sudo apt install nodejs npm
+```
+
+## Configuration
+
+Create a `config.local.yaml` file:
+
+```yaml
+mode: local
+
+gateway:
+  grpc:
+    port: 1993
+  http:
+    host: 127.0.0.1
+    port: 1994
+
+tools:
+  mcp:
+    filesystem:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp", "/Users"]
+
+    memory:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-memory"]
+
+    wikipedia:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-wikipedia"]
+```
+
+## Mount
+
+```bash
+airstore mount ~/airstore --config config.local.yaml
+```
+
+You should see:
+
+```
+  airstore mounted
+
+  Mount    ~/airstore
+  Gateway  127.0.0.1:1993
+  Mode     local
+
+  Available paths:
+    /tools/*        Tool binaries
+
+  Press Ctrl+C to unmount
+```
+
+## Using tools
+
+```bash
+# List available tools
+ls ~/airstore/tools/
+
+# Run a tool
+~/airstore/tools/wikipedia search "artificial intelligence"
+
+# Get help
+~/airstore/tools/filesystem --help
+```
+
+## Mount options
+
+```bash
+# Mount with verbose logging
+airstore mount ~/airstore --config config.local.yaml --verbose
+```
+
+| Option | Description |
+|--------|-------------|
+| `--config`, `-c` | Path to config file (required for local mode) |
+| `--verbose`, `-v` | Enable verbose logging |
+
+## Unmounting
+
+Press `Ctrl+C` in the terminal running the mount command, or:
+
+```bash
+# macOS
+diskutil unmount ~/airstore
+
+# Linux
+fusermount -u ~/airstore
+```
+
+## Adding environment variables
+
+For tools that need API keys, set environment variables before mounting:
+
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+airstore mount ~/airstore --config config.local.yaml
+```
+
+Or reference them in your config:
+
+```yaml
+tools:
+  mcp:
+    github:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-github"]
+      env:
+        GITHUB_TOKEN: "${GITHUB_TOKEN}"
+```
+
+## Related
+
+- [Tools](/concepts/tools) - Learn how MCP tools work
+- [Config reference](/reference/config) - Full configuration options
+- [Migrating MCPs](/guides/migrating-mcps) - Move existing MCP servers to Airstore

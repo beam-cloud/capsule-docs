@@ -1,0 +1,117 @@
+---
+title: "TypeScript SDK"
+description: "Manage Airstore filesystems from your backend"
+---
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+const workspace = await airstore.workspaces.create({ name: 'my-workspace' })
+console.log(workspace.external_id) // "ws_abc123..."
+```
+
+The Airstore TypeScript SDK gives you programmatic control over workspaces, integrations, source views, and the virtual filesystem. Use it to provision Airstore from your backend, automate setup for new users, or build custom workflows on top of the filesystem.
+
+## Install
+
+```bash
+npm install @airstore/sdk
+```
+
+## Authentication
+
+The SDK reads your API key from the `AIRSTORE_API_KEY` environment variable automatically. You can also pass it directly:
+
+```typescript
+const airstore = new Airstore({ apiKey: 'org_...' })
+```
+
+You'll find your API key in the [Airstore dashboard](https://app.airstore.ai) under **Settings > API Keys**.
+
+<Note>
+Organization tokens (`org_...`) can manage multiple workspaces. Workspace tokens (`tok_...`) are scoped to a single workspace. For backend provisioning, use an organization token.
+</Note>
+
+## Quick example
+
+Here's a typical provisioning flow -- create a workspace, connect Gmail, set up a source view, and generate a mount token:
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+// Create a workspace
+const ws = await airstore.workspaces.create({ name: 'acme-eng' })
+
+// Connect Gmail via OAuth
+const session = await airstore.oauth.createSession({
+  integrationType: 'gmail',
+  workspaceId: ws.external_id,
+})
+console.log(`Authorize here: ${session.authorize_url}`)
+
+// Wait for the user to complete OAuth
+const completed = await airstore.oauth.poll(session.session_id)
+
+// Create a source view (smart mode — LLM-inferred)
+await airstore.views.create(ws.external_id, {
+  integration: 'gmail',
+  name: 'Unread Emails',
+  guidance: 'unread emails from the inbox',
+})
+
+// Or use query mode with structured filters
+await airstore.views.create(ws.external_id, {
+  integration: 'gmail',
+  name: 'From Boss',
+  filter: { from: 'boss@company.com', is_unread: true },
+})
+
+// Generate a token for CLI mounting
+const { token } = await airstore.tokens.create(ws.external_id, {
+  name: 'vm-mount',
+})
+// Use it: airstore mount ~/airstore --token <token>
+```
+
+## Configuration
+
+| Option | Env variable | Default | Description |
+|--------|-------------|---------|-------------|
+| `apiKey` | `AIRSTORE_API_KEY` | -- | Your API key (required) |
+| `baseURL` | `AIRSTORE_BASE_URL` | `https://api.airstore.ai/api/v1` | API base URL |
+| `timeout` | -- | `60000` | Request timeout in ms |
+| `maxRetries` | -- | `2` | Retries for 429/5xx errors |
+
+## What's next
+
+<CardGroup cols={2}>
+
+<Card title="Create and manage workspaces" icon="folder-plus" href="/sdk/guides/manage-workspaces">
+  Provision workspaces for your users.
+</Card>
+
+<Card title="Connect integrations" icon="plug" href="/sdk/guides/connect-integrations">
+  Wire up Gmail, GitHub, and more via OAuth.
+</Card>
+
+<Card title="Create source views" icon="wand-magic-sparkles" href="/sdk/guides/source-views">
+  Define source views with natural language or structured filters.
+</Card>
+
+<Card title="Read files" icon="file-lines" href="/sdk/guides/read-files">
+  Browse and read from the virtual filesystem.
+</Card>
+
+<Card title="Tokens and mounting" icon="key" href="/sdk/guides/tokens-and-mounting">
+  Generate tokens for headless CLI mounting.
+</Card>
+
+<Card title="API Reference" icon="book" href="/sdk/reference/client">
+  Full method-by-method reference.
+</Card>
+
+</CardGroup>

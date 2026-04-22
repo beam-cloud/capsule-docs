@@ -1,0 +1,156 @@
+---
+title: "Skills"
+description: "Instructions for AI agents"
+---
+
+Skills are a set of instructions that teach agents how to handle specific tasks or workflows. Each skill is a folder containing a `SKILL.md` file that follows the [Agent Skills specification](https://agentskills.io/specification).
+
+Unlike tools (which are executables the agent runs), skills are passive — they provide context and instructions that shape how the agent behaves. Hooks trigger skills to run automatically when files change.
+
+## The SKILL.md file
+
+A skill is defined by a `SKILL.md` file with YAML formatted metadata followed by markdown instructions:
+
+```markdown
+---
+name: email-triage
+description: Categorizes emails by urgency. Use when processing Gmail inbox.
+license: MIT
+metadata:
+  author: beam-cloud
+  version: "1.0"
+  airstore:
+    needs:
+      - gmail
+    writes:
+      - /memory/email-triage/
+---
+
+# Instructions
+
+When new emails arrive, categorize each one as:
+- **urgent** — needs response within 1 hour
+- **normal** — respond within 24 hours
+- **low** — informational, no response needed
+
+Write a summary to /memory/email-triage/latest.md
+```
+
+The YAML between `---` delimiters declares metadata. Everything after the closing `---` is the instruction body that gets passed to the agent.
+
+## Required fields
+
+| Field | Description | Constraints |
+|-------|-------------|-------------|
+| `name` | Skill identifier | Lowercase alphanumeric with hyphens, max 64 chars. Must match `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$` — no leading, trailing, or consecutive hyphens. |
+| `description` | What the skill does | Human-readable, max 1024 characters. |
+
+## Optional fields
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `license` | License identifier | `MIT`, `Apache-2.0` |
+| `compatibility` | Compatibility notes | `claude-code>=1.0` |
+| `allowed-tools` | Tool restrictions for the agent | `read_file,write_file` |
+| `metadata` | Arbitrary key-value pairs | `author`, `version`, etc. |
+
+## Airstore metadata extensions
+
+Under `metadata.airstore`, you can declare integrations the skill depends on and output paths it creates:
+
+```yaml
+metadata:
+  airstore:
+    needs:
+      - gmail
+      - slack
+    writes:
+      - /memory/email-triage/
+```
+
+| Field | Description |
+|-------|-------------|
+| `needs` | List of required integrations (e.g., `gmail`, `slack`, `github`). Checked at install time — Airstore warns if any are not connected. |
+| `writes` | Output paths created on install. Directories are created automatically. |
+
+## Directory structure
+
+A skill is a folder with a `SKILL.md` at its root. It can contain additional files:
+
+```
+email-triage/
+├── SKILL.md          # Required — manifest + instructions
+├── templates/
+│   └── summary.md    # Supporting files
+└── examples/
+    └── sample.json
+```
+
+<Note>
+Individual files are limited to **10 MB** and the total skill size cannot exceed **50 MB**.
+</Note>
+
+## Installing skills
+
+Skills can be installed from GitHub repositories or local directories:
+
+```bash
+# From GitHub
+airstore skill install github.com/beam-cloud/skills/email-triage
+
+# From a local directory
+airstore skill install ./my-skill/
+```
+
+During installation, Airstore:
+1. Parses and validates the `SKILL.md` frontmatter
+2. Checks that required integrations (`needs`) are connected
+3. Uploads skill files to your workspace
+4. Creates output directories listed in `writes`
+
+## CLI commands
+
+| Command | Description |
+|---------|-------------|
+| `airstore skill install <source>` | Install a skill from GitHub or local path |
+| `airstore skill list` | List all installed skills |
+| `airstore skill info <name>` | Show details about an installed skill |
+| `airstore skill run <name>` | Manually trigger a skill |
+| `airstore skill uninstall <name>` | Remove an installed skill |
+
+The `uninstall` command accepts `--keep-memory` to preserve output directories when removing a skill.
+
+## Triggering skills with hooks
+
+Skills are passive — they don't run on their own. Use [hooks](/concepts/hooks) to trigger a skill automatically when files change:
+
+```bash
+airstore hook create \
+  --path /sources/gmail \
+  --prompt "Use the email-triage skill"
+```
+
+You can also run a skill manually at any time:
+
+```bash
+airstore skill run email-triage
+```
+
+## Minimal example
+
+The simplest valid skill:
+
+```markdown
+---
+name: my-skill
+description: A minimal skill example.
+---
+
+When asked, respond with "Hello from my-skill!"
+```
+
+## Related
+
+- [Tools](/concepts/tools) — Run MCP tools as CLI executables
+- [Source Views](/concepts/source-views) — Create views of the data you need
+- [CLI Reference](/reference/cli) — Full command reference

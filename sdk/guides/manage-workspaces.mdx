@@ -1,0 +1,91 @@
+---
+title: "Create and manage workspaces"
+description: "Provision workspaces for your users with the SDK"
+---
+
+```typescript
+const workspace = await airstore.workspaces.create({ name: 'acme-eng' })
+```
+
+A workspace is the top-level container in Airstore. It holds connections, source views, members, and the virtual filesystem. Most backend flows start here -- create a workspace, then set everything else up inside it.
+
+## Before you start
+
+<Note>
+You need an organization token (`org_...`) to create workspaces. Set it as `AIRSTORE_API_KEY` or pass it to the constructor. See the [overview](/sdk/overview) for setup.
+</Note>
+
+## Create a workspace
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+const workspace = await airstore.workspaces.create({ name: 'acme-eng' })
+console.log(workspace.external_id) // "ws_abc123..."
+console.log(workspace.name)        // "acme-eng"
+```
+
+The returned `workspace.external_id` is what you'll pass to every other SDK method that operates within a workspace.
+
+## List workspaces
+
+```typescript
+const workspaces = await airstore.workspaces.list()
+
+for (const ws of workspaces) {
+  console.log(`${ws.name} (${ws.external_id})`)
+}
+```
+
+With an organization token, this returns all workspaces belonging to your tenant. With a workspace token, you'll only see that workspace.
+
+## Get a specific workspace
+
+```typescript
+const workspace = await airstore.workspaces.retrieve('ws_abc123')
+console.log(workspace.name)
+```
+
+## Delete a workspace
+
+<Warning>
+Deleting a workspace removes all its connections, source views, members, and tokens. This cannot be undone.
+</Warning>
+
+```typescript
+await airstore.workspaces.del('ws_abc123')
+```
+
+## Typical pattern: workspace per user
+
+If you're building a product on top of Airstore, a common pattern is one workspace per user or team:
+
+```typescript
+async function provisionUser(userName: string) {
+  // Create a dedicated workspace
+  const ws = await airstore.workspaces.create({ name: `user-${userName}` })
+
+  // Generate a mount token they can use on their machine
+  const { token } = await airstore.tokens.create(ws.external_id, {
+    name: 'default',
+  })
+
+  return { workspaceId: ws.external_id, mountToken: token }
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="Connect integrations" icon="plug" href="/sdk/guides/connect-integrations">
+  Add Gmail, GitHub, and more to your workspace.
+</Card>
+
+<Card title="Workspaces reference" icon="book" href="/sdk/reference/workspaces">
+  Full method reference for `client.workspaces`.
+</Card>
+
+</CardGroup>

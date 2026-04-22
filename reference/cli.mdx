@@ -1,0 +1,346 @@
+---
+title: "CLI Reference"
+description: "Complete reference for all Airstore CLI commands"
+---
+
+The Airstore CLI provides commands for managing workspaces, members, connections, and tokens, as well as mounting the virtual filesystem.
+
+## Global flags
+
+These flags work with all commands:
+
+| Flag | Description |
+|------|-------------|
+| `--gateway` | Gateway gRPC address (default: `gateway.airstore.ai:443`) |
+| `--gateway-http` | Gateway HTTP address (default: `https://api.airstore.ai`) |
+| `--token` | Authentication token |
+| `--json` | Output in JSON format |
+| `-h`, `--help` | Show help for a command |
+| `-v`, `--version` | Show version |
+
+## Authentication
+
+### `airstore login`
+
+Authenticate via browser. Opens your default browser to complete authentication.
+
+**Usage:** `airstore login`
+
+```bash
+airstore login
+```
+
+After successful login, credentials are stored in `~/.airstore/credentials` and used automatically by other commands.
+
+<Note>
+For CI/CD or automation, use `airstore mount --token` instead.
+</Note>
+
+## Workspaces
+
+Manage workspaces. A workspace is a container for members, connections, and tasks.
+
+### `airstore workspace create`
+
+Create a new workspace.
+
+**Usage:** `airstore workspace create <name>`
+
+```bash
+airstore workspace create my-workspace
+```
+
+### `airstore workspace list`
+
+List all workspaces.
+
+```bash
+airstore workspace list
+```
+
+### `airstore workspace get`
+
+Get workspace details.
+
+**Usage:** `airstore workspace get <id>`
+
+```bash
+airstore workspace get ws_abc123
+```
+
+### `airstore workspace delete`
+
+Delete a workspace.
+
+**Usage:** `airstore workspace delete <id>`
+
+```bash
+airstore workspace delete ws_abc123
+```
+
+## Members
+
+Manage workspace members.
+
+### `airstore member add`
+
+Add a member to a workspace.
+
+**Usage:** `airstore member add <workspace_id> <email>`
+
+```bash
+airstore member add ws_abc123 user@example.com
+airstore member add ws_abc123 user@example.com --name "Jane Doe" --role admin
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name` | Member display name |
+| `--role` | Role: `admin`, `member`, `viewer` (default: `member`) |
+
+### `airstore member list`
+
+List members in a workspace.
+
+**Usage:** `airstore member list <workspace_id>`
+
+```bash
+airstore member list ws_abc123
+```
+
+### `airstore member remove`
+
+Remove a member from a workspace.
+
+**Usage:** `airstore member remove <member_id>`
+
+```bash
+airstore member remove mem_xyz789
+```
+
+## Connections
+
+Manage integration connections. Connections link external services (GitHub, Gmail, etc.) to your workspace.
+
+### `airstore connection add`
+
+Add an integration connection to a workspace.
+
+**Usage:** `airstore connection add <workspace_id> <type>`
+
+**Supported integration types:**
+
+| Type | Authentication | Description |
+|------|----------------|-------------|
+| `github` | `--token` | GitHub personal access token (`ghp_*` or `github_pat_*`) |
+| `gmail` | `--token` | Gmail OAuth access token |
+| `gdrive` | `--token` | Google Drive OAuth access token |
+| `notion` | `--token` | Notion integration token (`secret_*` or `ntn_*`) |
+| `weather` | `--api-key` | OpenWeatherMap API key |
+| `exa` | `--api-key` | Exa AI search API key |
+| `posthog` | `--api-key` | PostHog personal API key (`phx_*`) |
+
+```bash
+# Token-based integrations
+airstore connection add ws_abc123 github --token ghp_xxxxxxxxxxxx
+airstore connection add ws_abc123 notion --token secret_xxxxxxxxxxxx
+
+# API key integrations
+airstore connection add ws_abc123 weather --api-key abc123
+airstore connection add ws_abc123 exa --api-key abc123
+airstore connection add ws_abc123 posthog --api-key phx_xxxxxxxxxxxx
+
+# Personal connection (not shared with workspace)
+airstore connection add ws_abc123 github --token ghp_xxx --member mem_xyz
+```
+
+| Option | Description |
+|--------|-------------|
+| `--token` | Access token (for OAuth integrations like GitHub, Gmail) |
+| `--api-key` | API key (for API key integrations like Weather, Exa) |
+| `--member` | Member ID for personal connection (omit for shared) |
+| `--scope` | OAuth scopes |
+
+### `airstore connection list`
+
+List connections in a workspace.
+
+**Usage:** `airstore connection list <workspace_id>`
+
+```bash
+airstore connection list ws_abc123
+```
+
+### `airstore connection remove`
+
+Remove a connection.
+
+**Usage:** `airstore connection remove <connection_id>`
+
+```bash
+airstore connection remove conn_abc123
+```
+
+### `airstore connection connect`
+
+Connect an OAuth integration via browser. Opens a browser for authentication.
+
+**Usage:** `airstore connection connect <integration>`
+
+```bash
+airstore connection connect gmail
+airstore connection connect gdrive
+```
+
+Supported OAuth integrations: `gmail`, `gdrive`
+
+<Note>
+Requires authentication via `airstore login` or `--token` flag.
+</Note>
+
+## Mount
+
+Mount the Airstore virtual filesystem.
+
+### `airstore mount`
+
+Mount the Airstore virtual filesystem at the specified path. This command blocks until unmounted (Ctrl+C).
+
+**Usage:** `airstore mount <path>`
+
+```bash
+airstore mount ~/airstore --config config.local.yaml
+```
+
+The filesystem provides configured MCP tools as executables in `/tools/*`.
+
+| Option | Description |
+|--------|-------------|
+| `--verbose`, `-v` | Enable verbose logging |
+| `--config`, `-c` | Path to config file (required for local mode) |
+| `--token` | API token for non-interactive auth (skips browser login) |
+
+**Local mode** runs an embedded gateway within the CLI process:
+
+```bash
+airstore mount ~/airstore --config config.local.yaml
+```
+
+After mounting, the command displays:
+
+```
+  airstore mounted
+
+  Mount    ~/airstore
+  Gateway  127.0.0.1:1993
+  Mode     local
+
+  Available paths:
+    /tools/*        Tool binaries
+
+  Press Ctrl+C to unmount
+```
+
+Press `Ctrl+C` to gracefully unmount. Press `Ctrl+C` again to force exit.
+
+### `airstore start`
+
+Run Airstore as a background service with a menu bar app (macOS only). This is an alternative to `airstore mount` that doesn't require keeping a terminal open.
+
+**Usage:** `airstore start`
+
+```bash
+airstore start
+```
+
+After starting, Airstore mounts to `~/Desktop/Airstore` and an icon appears in your menu bar where you can unmount, open the folder, or quit.
+
+<Note>
+On first run, macOS may prompt you to allow Airstore to run in the background.
+</Note>
+
+## Tokens
+
+Manage workspace tokens. Tokens are used for authentication when mounting or accessing the API.
+
+### `airstore token create`
+
+Create an API token for a member.
+
+**Usage:** `airstore token create <workspace_id> <member_id>`
+
+```bash
+airstore token create ws_abc123 mem_xyz789
+airstore token create ws_abc123 mem_xyz789 --name "CI Token" --expires 7d
+```
+
+| Option | Description |
+|--------|-------------|
+| `--name` | Token name (default: "API Token") |
+| `--expires` | Expiration duration (e.g., `24h`, `7d`, `30d`) |
+
+<Warning>
+Save the token immediately after creation. It won't be shown again.
+</Warning>
+
+### `airstore token list`
+
+List tokens in a workspace.
+
+**Usage:** `airstore token list <workspace_id>`
+
+```bash
+airstore token list ws_abc123
+```
+
+### `airstore token revoke`
+
+Revoke a token.
+
+**Usage:** `airstore token revoke <token_id>`
+
+```bash
+airstore token revoke tok_abc123
+```
+
+## Completion
+
+Generate shell autocompletion scripts.
+
+### `airstore completion bash`
+
+Generate bash completion script.
+
+```bash
+# Add to ~/.bashrc
+source <(airstore completion bash)
+```
+
+### `airstore completion zsh`
+
+Generate zsh completion script.
+
+```bash
+# Add to ~/.zshrc
+source <(airstore completion zsh)
+```
+
+### `airstore completion fish`
+
+Generate fish completion script.
+
+```bash
+airstore completion fish | source
+```
+
+### `airstore completion powershell`
+
+Generate PowerShell completion script.
+
+```powershell
+airstore completion powershell | Out-String | Invoke-Expression
+```
+
+---
+
+See also: [Config file reference](/reference/config) | [Mounting](/concepts/mounting)

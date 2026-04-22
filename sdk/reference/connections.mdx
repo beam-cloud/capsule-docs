@@ -1,0 +1,97 @@
+---
+title: "Connections"
+sidebarTitle: "Connections"
+description: "client.connections — manage integration connections"
+---
+
+```typescript
+await airstore.connections.create('ws_abc123', {
+  integrationType: 'github',
+  accessToken: 'ghp_xxxxxxxxxxxx',
+})
+```
+
+Connections link external services (Gmail, GitHub, Google Drive, etc.) to a workspace. Once connected, their data is available in the virtual filesystem.
+
+---
+
+## create()
+
+Create a connection by passing existing credentials.
+
+```typescript
+// OAuth-based
+const connection = await airstore.connections.create('ws_abc123', {
+  integrationType: 'gmail',
+  accessToken: 'ya29.xxx',
+  refreshToken: '1//xxx',
+  scope: 'https://www.googleapis.com/auth/gmail.readonly',
+})
+
+// API key-based
+const phConnection = await airstore.connections.create('ws_abc123', {
+  integrationType: 'posthog',
+  apiKey: 'phx_xxxxxxxxxxxx',
+})
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | `string` | Yes | Workspace external ID |
+| `integrationType` | `IntegrationType` | Yes | Provider: `gmail`, `gdrive`, `github`, `notion`, `linear`, `slack`, `posthog` |
+| `accessToken` | `string` | No | OAuth access token |
+| `refreshToken` | `string` | No | OAuth refresh token |
+| `apiKey` | `string` | No | API key (for key-based integrations) |
+| `scope` | `string` | No | OAuth scope string |
+| `extra` | `Record<string, string>` | No | Provider-specific extra fields |
+
+**Returns** `Promise<Connection>`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `external_id` | `string` | Unique connection identifier |
+| `workspace_id` | `string` | Workspace this connection belongs to |
+| `integration_type` | `string` | Provider type |
+| `scope` | `string \| undefined` | OAuth scope granted |
+| `expires_at` | `string \| undefined` | When credentials expire |
+| `created_at` | `string` | ISO 8601 timestamp |
+| `updated_at` | `string` | ISO 8601 timestamp |
+
+---
+
+## list()
+
+List all connections in a workspace.
+
+```typescript
+const connections = await airstore.connections.list('ws_abc123')
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | `string` | Yes | Workspace external ID |
+
+**Returns** `Promise<Connection[]>`
+
+---
+
+## del()
+
+Delete a connection.
+
+```typescript
+await airstore.connections.del('ws_abc123', 'conn_xyz789')
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | `string` | Yes | Workspace external ID |
+| `connectionId` | `string` | Yes | Connection external ID |
+
+**Returns** `Promise<void>`

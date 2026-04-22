@@ -1,0 +1,60 @@
+---
+title: "Introduction"
+description: ""
+---
+
+Airstore turns your integrations into a filesystem. Connect your services, create source views to query your data, and the results become local folders that Claude can read.
+
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/rWJo4wJe4wY"
+  title="Airstore Demo"
+  frameBorder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+></iframe>
+
+## Why files?
+
+AI agents excel at navigating filesystems and working with files. Airstore leverages this by turning your services into files, so Claude can work with emails and issues the same way it works with code.
+
+There's also a security benefit: source views let you scope exactly what Claude can access. Instead of granting access to your entire inbox, you create a view with just "invoices from last week".
+
+## How it works
+
+1. **Connect services** in the [Airstore dashboard](https://app.airstore.ai) (GitHub, Gmail, Drive, PostHog, etc.)
+2. **Create source views** with natural language or structured filters ("invoices from last week")
+3. **Mount locally** with `airstore mount ~/airstore`
+4. **Use with Claude** - it reads your data as files
+
+## Key concepts
+
+| Concept | Description |
+|---------|-------------|
+| **Source views** | Queries over connected integrations that materialize as folders of files |
+| **Integrations** | Services you connect (GitHub, Gmail, Drive, Linear, Notion, Slack, PostHog) |
+| **Mounting** | Attach the virtual filesystem to your local machine |
+| **Tools** | MCP servers exposed as executables for taking actions |
+
+## Get started
+
+<CardGroup cols={2}>
+
+<Card title="Quickstart" icon="rocket" href="/quickstart">
+  Get Airstore running in 5 minutes.
+</Card>
+
+<Card title="How it works" icon="diagram-project" href="/concepts/how-it-works">
+  Understand the architecture.
+</Card>
+
+<Card title="Installation" icon="download" href="/installation">
+  Install the CLI on macOS or Linux.
+</Card>
+
+<Card title="CLI reference" icon="terminal" href="/reference/cli">
+  Full command reference.
+</Card>
+
+</CardGroup>

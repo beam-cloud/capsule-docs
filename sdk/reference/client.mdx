@@ -1,0 +1,116 @@
+---
+title: "Client"
+sidebarTitle: "Client"
+description: "Airstore class, configuration, and authentication"
+---
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore({
+  apiKey: 'org_...',
+  timeout: 30_000,
+  maxRetries: 3,
+})
+```
+
+The `Airstore` class is the entry point for all SDK operations. It exposes resource namespaces (`workspaces`, `connections`, `views`, `tokens`, `members`, `oauth`, `fs`) that map to the Airstore REST API.
+
+## Constructor
+
+```typescript
+new Airstore(options?: ClientOptions)
+```
+
+Creates a new SDK client. Throws `AirstoreError` if no API key is provided.
+
+## ClientOptions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiKey` | `string` | `process.env.AIRSTORE_API_KEY` | API key for authentication. Organization tokens start with `org_`, workspace tokens with `tok_`. |
+| `baseURL` | `string` | `https://api.airstore.ai/api/v1` | Base URL for the API. Also reads `AIRSTORE_BASE_URL` env var. |
+| `timeout` | `number` | `60000` | Request timeout in milliseconds. |
+| `maxRetries` | `number` | `2` | Maximum retries for 429 and 5xx errors. Uses exponential backoff with jitter. |
+| `defaultHeaders` | `Record<string, string>` | `{}` | Extra headers added to every request. |
+
+## RequestOptions
+
+Every resource method accepts `RequestOptions` as the last argument to override client-level settings for a single call:
+
+```typescript
+const workspaces = await airstore.workspaces.list({
+  timeout: 10_000,
+  maxRetries: 5,
+})
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `timeout` | `number` | Override the client-level timeout for this request. |
+| `maxRetries` | `number` | Override the client-level retry count. |
+| `signal` | `AbortSignal` | Abort signal for cancellation. |
+| `headers` | `Record<string, string>` | Extra headers merged with client defaults. |
+
+## ResponseMeta
+
+Every response object has a non-enumerable `lastResponse` property with HTTP metadata:
+
+```typescript
+const workspace = await airstore.workspaces.create({ name: 'test' })
+
+console.log(workspace.lastResponse.statusCode) // 200
+console.log(workspace.lastResponse.requestId)  // "req_abc123"
+console.log(workspace.lastResponse.headers)    // Headers object
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `statusCode` | `number` | HTTP status code. |
+| `headers` | `Headers` | Response headers. |
+| `requestId` | `string \| undefined` | Value of the `x-request-id` header, if present. |
+
+## rawRequest()
+
+Escape hatch for endpoints not yet covered by the SDK:
+
+```typescript
+const response = await airstore.rawRequest('GET', '/some/endpoint', {
+  params: { key: 'value' },
+  timeout: 5_000,
+})
+
+const data = await response.json()
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `method` | `string` | Yes | HTTP method (`GET`, `POST`, etc.) |
+| `path` | `string` | Yes | API path (appended to `baseURL`) |
+| `opts.body` | `unknown` | No | Request body (JSON-serialized automatically) |
+| `opts.params` | `Record<string, string>` | No | Query parameters |
+| `opts.timeout` | `number` | No | Request timeout |
+| `opts.signal` | `AbortSignal` | No | Abort signal |
+| `opts.headers` | `Record<string, string>` | No | Extra headers |
+
+**Returns** `Promise<Response>` -- the raw Fetch API response.
+
+## Resource namespaces
+
+| Namespace | Description | Reference |
+|-----------|-------------|-----------|
+| `airstore.workspaces` | Create and manage workspaces | [Workspaces](/sdk/reference/workspaces) |
+| `airstore.connections` | Manage integration connections | [Connections](/sdk/reference/connections) |
+| `airstore.views` | Create and manage source views | [Views](/sdk/reference/views) |
+| `airstore.tokens` | Manage workspace tokens | [Tokens](/sdk/reference/tokens) |
+| `airstore.members` | Manage workspace members | [Members](/sdk/reference/members) |
+| `airstore.oauth` | OAuth session management | [OAuth](/sdk/reference/oauth) |
+| `airstore.fs` | Read from the virtual filesystem | [Filesystem](/sdk/reference/filesystem) |
+
+## Retry behavior
+
+The client automatically retries on status codes `408`, `409`, `429`, `500`, `502`, `503`, and `504`. Retries use exponential backoff starting at 500ms, capped at 8 seconds, with jitter. If the response includes a `Retry-After` or `retry-after-ms` header, the client respects that instead.
+
+Set `maxRetries: 0` to disable retries entirely.

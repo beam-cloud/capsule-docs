@@ -1,0 +1,222 @@
+---
+title: "Create source views"
+description: "Define source views with natural language or structured filters, sync them, and browse results"
+---
+
+```typescript
+const view = await airstore.views.create('ws_abc123', {
+  integration: 'gmail',
+  name: 'Unread Emails',
+  guidance: 'unread emails from the inbox',
+})
+console.log(view.path) // "/sources/gmail/Unread Emails"
+```
+
+A source view is a materialized query over a connected integration. You describe what data you want — either in natural language or with a structured filter — and Airstore fetches matching results as files in the virtual filesystem.
+
+## Smart mode
+
+Smart mode uses an LLM to translate natural language into the appropriate API query. Provide a `guidance` string describing what you want:
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+const view = await airstore.views.create('ws_abc123', {
+  integration: 'gmail',
+  name: 'Investor Emails',
+  guidance: 'emails from investors in the last 30 days',
+})
+
+console.log(view.external_id) // "view_abc123"
+console.log(view.path)        // "/sources/gmail/Investor Emails"
+console.log(view.mode)        // "smart"
+```
+
+Be specific — `"emails from investors in the last 30 days"` works better than `"investor stuff"`.
+
+## Query mode
+
+Query mode uses structured filter objects — no LLM involved. When you pass a `filter` instead of `guidance`, the view is automatically created in query mode.
+
+```typescript
+// GitHub: open PRs with diffs
+const prView = await airstore.views.create('ws_abc123', {
+  integration: 'github',
+  name: 'Open PRs',
+  filter: {
+    repo: 'acme/api',
+    type: 'prs',
+    state: 'open',
+    content_type: 'diff',
+  },
+})
+console.log(prView.mode) // "query"
+```
+
+```typescript
+// Gmail: unread emails from a specific sender
+await airstore.views.create('ws_abc123', {
+  integration: 'gmail',
+  name: 'From Boss',
+  filter: {
+    from: 'boss@company.com',
+    is_unread: true,
+  },
+})
+```
+
+```typescript
+// Slack: recent messages in a channel
+await airstore.views.create('ws_abc123', {
+  integration: 'slack',
+  name: 'Engineering Updates',
+  filter: {
+    channel: 'engineering',
+    after: '2025-01-01',
+  },
+})
+```
+
+```typescript
+// Linear: high-priority bugs assigned to me
+await airstore.views.create('ws_abc123', {
+  integration: 'linear',
+  name: 'My Bugs',
+  filter: {
+    type: 'issues',
+    state: 'in_progress',
+    priority: 'high',
+    assignee: 'me',
+  },
+})
+```
+
+Each integration has its own filter schema. See [Source Views](/concepts/source-views#per-integration-filters) for the full field reference.
+
+### GitHub content types
+
+GitHub views support a `content_type` field that controls the output format:
+
+| Content type | Description |
+|-------------|-------------|
+| `json` | Structured JSON with full metadata (default) |
+| `markdown` | Human-readable markdown |
+| `diff` | Unified diff format (PRs and commits) |
+| `raw` | Raw content from the API |
+
+```typescript
+// Get PR diffs as markdown files
+await airstore.views.create('ws_abc123', {
+  integration: 'github',
+  name: 'PR Diffs',
+  filter: {
+    repo: 'acme/api',
+    type: 'prs',
+    state: 'open',
+    content_type: 'diff',
+  },
+})
+```
+
+### Output formats
+
+| Format | Description |
+|--------|-------------|
+| `folder` | Each result becomes a separate file (default) |
+| `file` | All results aggregated into a single file |
+
+```typescript
+// Single-file output
+await airstore.views.create('ws_abc123', {
+  integration: 'linear',
+  name: 'Sprint Summary',
+  guidance: 'all issues in the current sprint',
+  outputFormat: 'file',
+  fileExt: '.md',
+})
+```
+
+## Sync a view
+
+Source views are materialized — results are cached for fast reads. Call `sync()` to re-execute the query and pick up new data from the source:
+
+```typescript
+const result = await airstore.views.sync('ws_abc123', 'view_abc123')
+
+console.log(result.results_count) // total results after sync
+console.log(result.new_results)   // newly discovered since last sync
+```
+
+Syncing is idempotent and safe to call repeatedly. Views also sync automatically in the background, but you can trigger a manual sync when freshness matters — for example, right before an agent reads the data.
+
+## Browse view contents
+
+Once created, use the filesystem methods to read the view's files:
+
+```typescript
+// List files in the view
+const files = await airstore.fs.list('ws_abc123', { path: view.path })
+
+for (const file of files) {
+  console.log(`${file.name} (${file.size} bytes)`)
+}
+
+// Read a file
+const content = await airstore.fs.read('ws_abc123', {
+  path: `${view.path}/${files[0].name}`,
+})
+```
+
+<Note>
+There may be a short delay between creating a view and its contents appearing. If the view is empty right after creation, wait a few seconds and try again — or call `sync()` explicitly.
+</Note>
+
+## List all views
+
+```typescript
+const views = await airstore.views.list('ws_abc123')
+
+for (const v of views) {
+  console.log(`${v.name} → ${v.path} (${v.integration}, ${v.mode})`)
+}
+```
+
+## Update a view
+
+Change the name, guidance, or filter of an existing view:
+
+```typescript
+// Update smart mode guidance
+await airstore.views.update('ws_abc123', 'view_abc', {
+  guidance: 'unread emails from investors, last 7 days only',
+})
+
+// Switch to query mode by providing a filter
+await airstore.views.update('ws_abc123', 'view_abc', {
+  filter: { from: 'investor@fund.com', is_unread: true },
+})
+```
+
+Updating a view triggers a re-sync with the new query.
+
+## Delete a view
+
+```typescript
+await airstore.views.del('ws_abc123', 'view_abc')
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="Read files" icon="file-lines" href="/sdk/guides/read-files">
+  Read the files inside your source views.
+</Card>
+
+<Card title="Views reference" icon="book" href="/sdk/reference/views">
+  Full method reference for `client.views`.
+</Card>
+
+</CardGroup>

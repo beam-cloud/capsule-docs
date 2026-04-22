@@ -1,0 +1,98 @@
+---
+title: "Members"
+sidebarTitle: "Members"
+description: "client.members — manage workspace members"
+---
+
+```typescript
+const member = await airstore.members.create('ws_abc123', {
+  email: 'jane@example.com',
+  name: 'Jane Doe',
+  role: 'admin',
+})
+```
+
+Members are users with a role in a workspace. Roles determine what they can do when accessing the workspace through the dashboard or CLI.
+
+---
+
+## create()
+
+Add a member to a workspace.
+
+```typescript
+const member = await airstore.members.create('ws_abc123', {
+  email: 'jane@example.com',
+  name: 'Jane Doe',
+  role: 'member',
+})
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `workspaceId` | `string` | Yes | -- | Workspace external ID |
+| `email` | `string` | Yes | -- | Member's email address |
+| `name` | `string` | Yes | -- | Display name |
+| `role` | `'admin' \| 'member' \| 'viewer'` | No | `member` | Role in the workspace |
+
+**Returns** `Promise<Member>`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `external_id` | `string` | Unique member identifier |
+| `email` | `string` | Email address |
+| `name` | `string` | Display name |
+| `role` | `string` | `admin`, `member`, or `viewer` |
+| `created_at` | `string` | ISO 8601 timestamp |
+| `updated_at` | `string` | ISO 8601 timestamp |
+
+### Roles
+
+| Role | Description |
+|------|-------------|
+| `admin` | Full access: manage members, connections, source views, and tokens |
+| `member` | Can use integrations and source views, but can't manage workspace settings |
+| `viewer` | Read-only access to the filesystem |
+
+---
+
+## list()
+
+List members in a workspace.
+
+```typescript
+const members = await airstore.members.list('ws_abc123')
+
+for (const m of members) {
+  console.log(`${m.name} (${m.email}) -- ${m.role}`)
+}
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | `string` | Yes | Workspace external ID |
+
+**Returns** `Promise<Member[]>`
+
+---
+
+## del()
+
+Remove a member from a workspace.
+
+```typescript
+await airstore.members.del('ws_abc123', 'mem_xyz789')
+```
+
+**Parameters**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `workspaceId` | `string` | Yes | Workspace external ID |
+| `memberId` | `string` | Yes | Member external ID |
+
+**Returns** `Promise<void>`

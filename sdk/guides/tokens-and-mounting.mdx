@@ -1,0 +1,132 @@
+---
+title: "Generate tokens for headless mounting"
+description: "Create workspace tokens and mount Airstore on VMs without interactive login"
+---
+
+```typescript
+const { token } = await airstore.tokens.create('ws_abc123', { name: 'vm-mount' })
+// Use: airstore mount ~/airstore --token <token>
+```
+
+The SDK lets you generate workspace tokens that authenticate the CLI without an interactive browser login. This is the bridge between backend provisioning and filesystem mounting -- your backend creates the workspace and token, then passes the token to a VM or CI runner that mounts the filesystem.
+
+## Create a mount token
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+const result = await airstore.tokens.create('ws_abc123', {
+  name: 'production-vm',
+})
+
+console.log(result.token)            // "tok_xxxxxxxxxxxx" -- save this!
+console.log(result.info.external_id) // "tkn_abc123"
+console.log(result.info.name)        // "production-vm"
+```
+
+<Warning>
+The raw token value is only returned at creation time. Store it securely -- you won't be able to retrieve it again.
+</Warning>
+
+## Mount on a VM
+
+Once you have a token, pass it to the CLI to mount without a browser:
+
+```bash
+airstore mount ~/airstore --token tok_xxxxxxxxxxxx
+```
+
+Or run as a background daemon:
+
+```bash
+airstore start --token tok_xxxxxxxxxxxx
+```
+
+This is ideal for headless Linux VMs, CI runners, or any environment without a browser.
+
+## Token with expiration
+
+```typescript
+const result = await airstore.tokens.create('ws_abc123', {
+  name: 'ci-runner',
+  expiresIn: 86400, // 24 hours in seconds
+})
+```
+
+Set `expiresIn` to `0` (or omit it) for tokens that don't expire.
+
+## List tokens
+
+```typescript
+const tokens = await airstore.tokens.list('ws_abc123')
+
+for (const t of tokens) {
+  console.log(`${t.name} (${t.external_id}) -- last used: ${t.last_used_at ?? 'never'}`)
+}
+```
+
+<Note>
+Token listing returns metadata only. Raw token values are never exposed after creation.
+</Note>
+
+## Revoke a token
+
+```typescript
+await airstore.tokens.revoke('ws_abc123', 'tkn_abc123')
+```
+
+Revoked tokens stop working immediately. Any CLI sessions using that token will disconnect.
+
+## Full provisioning flow
+
+Here's a complete example: create a workspace, connect an integration, set up a source view, and return a mount token:
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+async function provisionVM(userName: string) {
+  // 1. Create workspace
+  const ws = await airstore.workspaces.create({ name: `vm-${userName}` })
+
+  // 2. Connect GitHub with an existing token
+  await airstore.connections.create(ws.external_id, {
+    integrationType: 'github',
+    accessToken: process.env.GITHUB_TOKEN!,
+  })
+
+  // 3. Create a source view for open PRs
+  await airstore.views.create(ws.external_id, {
+    integration: 'github',
+    name: 'Open PRs',
+    guidance: 'open pull requests that need review',
+  })
+
+  // 4. Generate a mount token
+  const { token } = await airstore.tokens.create(ws.external_id, {
+    name: 'vm-mount',
+  })
+
+  return {
+    workspaceId: ws.external_id,
+    mountCommand: `airstore mount ~/airstore --token ${token}`,
+  }
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="CLI reference" icon="terminal" href="/reference/cli">
+  Full `airstore mount` and `airstore start` docs.
+</Card>
+
+<Card title="Tokens reference" icon="book" href="/sdk/reference/tokens">
+  Full method reference for `client.tokens`.
+</Card>
+
+</CardGroup>

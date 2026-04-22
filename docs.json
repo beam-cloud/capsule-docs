@@ -1,0 +1,113 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "linden",
+  "name": "Airstore",
+  "colors": {
+    "primary": "#8B5CF6",
+    "light": "#A78BFA",
+    "dark": "#7C3AED"
+  },
+  "favicon": "/favicon.ico",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["index", "quickstart", "installation"]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/source-views",
+              "concepts/tools",
+              "concepts/skills",
+              "concepts/mounting"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": ["guides/claude-code", "guides/migrating-mcps"]
+          },
+          {
+            "group": "Integration Guides",
+            "pages": ["guides/posthog"]
+          },
+          {
+            "group": "Self-Hosted / Local",
+            "pages": ["deployment/local", "first-workflow", "reference/config"]
+          },
+          {
+            "group": "Reference",
+            "pages": ["reference/cli", "sdk/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "CLI",
+            "pages": ["reference/cli"]
+          }
+        ]
+      },
+      {
+        "tab": "TypeScript SDK",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": ["sdk/overview"]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "sdk/guides/manage-workspaces",
+              "sdk/guides/connect-integrations",
+              "sdk/guides/source-views",
+              "sdk/guides/read-files",
+              "sdk/guides/tokens-and-mounting"
+            ]
+          },
+          {
+            "group": "API Reference",
+            "pages": [
+              "sdk/reference/client",
+              "sdk/reference/workspaces",
+              "sdk/reference/connections",
+              "sdk/reference/views",
+              "sdk/reference/tokens",
+              "sdk/reference/members",
+              "sdk/reference/oauth",
+              "sdk/reference/filesystem",
+              "sdk/reference/errors"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/beam-cloud/airstore",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "navbar": {
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://app.airstore.ai"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/beam-cloud/airstore"
+    }
+  }
+}

@@ -1,0 +1,146 @@
+---
+title: "Local Workflow"
+description: "Build a workflow with Airstore in local mode"
+---
+
+<Note>
+This guide covers **local mode** for self-hosted deployments and development. For the standard cloud experience, see the [Quickstart](/quickstart).
+</Note>
+
+This guide shows how to use Airstore locally with your own MCP servers. You'll configure tools, mount them as a filesystem, and use them with Claude Code.
+
+## Prerequisites
+
+- [Airstore CLI installed](/installation)
+- Node.js (for npx-based MCP servers)
+- FUSE dependencies (installed by the install script)
+
+## Step 1: Configure your tools
+
+Create a `config.local.yaml` file:
+
+```yaml
+mode: local
+
+gateway:
+  grpc:
+    port: 1993
+  http:
+    host: 127.0.0.1
+    port: 1994
+
+tools:
+  mcp:
+    filesystem:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "/tmp", "/Users"]
+
+    memory:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-memory"]
+
+    wikipedia:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-wikipedia"]
+```
+
+## Step 2: Mount the filesystem
+
+```bash
+airstore mount ~/airstore --config config.local.yaml
+```
+
+Your tools are now available:
+
+```bash
+ls ~/airstore/tools/
+# filesystem  memory  wikipedia
+```
+
+## Step 3: Use the tools
+
+Each tool works like a regular CLI command:
+
+```bash
+# Search Wikipedia
+~/airstore/tools/wikipedia search "artificial intelligence"
+
+# List files
+~/airstore/tools/filesystem list_directory /tmp
+
+# Store information in memory
+~/airstore/tools/memory create_entities '[{"name": "project", "type": "note"}]'
+```
+
+## Step 4: Run Claude Code
+
+```bash
+cd ~/airstore
+claude "Use the wikipedia tool to research Alan Turing and summarize his contributions"
+```
+
+Claude Code can invoke the tools directly and combine results.
+
+## Why local mode?
+
+| Use case | Description |
+|----------|-------------|
+| Development | Test MCP servers before deploying to cloud |
+| Self-hosted | Run everything on your own infrastructure |
+| Custom tools | Use internal MCP servers not available publicly |
+| Offline | Work without internet connectivity |
+
+## Chaining tools
+
+Because tools output JSON, you can chain them with standard bash:
+
+```bash
+# Search Wikipedia and filter results
+~/airstore/tools/wikipedia search "physics" | jq '.results[:3]'
+
+# Store search results in memory
+RESULTS=$(~/airstore/tools/wikipedia search "Alan Turing")
+~/airstore/tools/memory create_entities "[{\"name\": \"turing-research\", \"type\": \"note\", \"observations\": [\"$RESULTS\"]}]"
+```
+
+## Adding more tools
+
+Add tools to your config and remount:
+
+```yaml
+tools:
+  mcp:
+    # ... existing tools ...
+    
+    github:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-github"]
+      env:
+        GITHUB_TOKEN: "${GITHUB_TOKEN}"
+```
+
+```bash
+# Unmount (Ctrl+C) and remount
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+airstore mount ~/airstore --config config.local.yaml
+```
+
+Now you have GitHub access too:
+
+```bash
+~/airstore/tools/github list_repositories --owner=acme
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="Tools concept" icon="wrench" href="/concepts/tools">
+  Learn more about how tools work.
+</Card>
+
+<Card title="Config reference" icon="file-code" href="/reference/config">
+  Full configuration options.
+</Card>
+
+</CardGroup>

@@ -1,0 +1,146 @@
+---
+title: "Read files from the filesystem"
+description: "Browse directories, read file contents, and inspect metadata"
+---
+
+```typescript
+const files = await airstore.fs.list('ws_abc123', { path: '/' })
+const content = await airstore.fs.read('ws_abc123', { path: files[0].path })
+```
+
+The virtual filesystem is where everything comes together. Connected integrations and source views surface their data as files and directories that you can list, read, and inspect -- just like a local filesystem.
+
+## List a directory
+
+```typescript
+import Airstore from '@airstore/sdk'
+
+const airstore = new Airstore()
+
+// List the root
+const root = await airstore.fs.list('ws_abc123', { path: '/' })
+for (const entry of root) {
+  const icon = entry.is_folder ? '📁' : '📄'
+  console.log(`${icon} ${entry.name}`)
+}
+```
+
+Output might look like:
+
+```
+📁 sources
+```
+
+Drill into subdirectories by passing a deeper path:
+
+```typescript
+const gmailFiles = await airstore.fs.list('ws_abc123', {
+  path: '/sources/gmail/',
+})
+```
+
+## Read a file
+
+```typescript
+const content = await airstore.fs.read('ws_abc123', {
+  path: '/sources/gmail/Unread Emails/meeting-notes.eml',
+})
+
+console.log(content) // file contents as a string
+```
+
+For large files, use byte-range reads:
+
+```typescript
+// Read the first 1KB
+const preview = await airstore.fs.read('ws_abc123', {
+  path: '/sources/gmail/Unread Emails/large-attachment.pdf',
+  offset: 0,
+  length: 1024,
+})
+```
+
+## Get a directory tree
+
+`tree()` returns a recursive listing of all files and directories under a path. Useful for getting a full picture of what's available:
+
+```typescript
+const tree = await airstore.fs.tree('ws_abc123', { path: '/' })
+
+for (const entry of tree.entries) {
+  const indent = entry.path.split('/').length - 1
+  console.log(`${'  '.repeat(indent)}${entry.name}`)
+}
+```
+
+For large trees, use pagination:
+
+```typescript
+let token: string | undefined
+
+do {
+  const page = await airstore.fs.tree('ws_abc123', {
+    path: '/',
+    maxKeys: 100,
+    continuationToken: token,
+  })
+
+  for (const entry of page.entries) {
+    console.log(entry.path)
+  }
+
+  token = page.truncated ? page.continuation_token : undefined
+} while (token)
+```
+
+## Check file metadata
+
+`stat()` returns metadata for a single file or directory without reading its contents:
+
+```typescript
+const info = await airstore.fs.stat('ws_abc123', '/sources/gmail/Unread Emails/invoice.pdf')
+
+console.log(info.name)        // "invoice.pdf"
+console.log(info.size)        // 48230
+console.log(info.type)        // "application/pdf"
+console.log(info.modified_at) // "2025-01-15T10:30:00Z"
+```
+
+## Typical pattern: search and read
+
+Combine source views with filesystem reads to build search workflows:
+
+```typescript
+// Create a source view
+const view = await airstore.views.create('ws_abc123', {
+  integration: 'gmail',
+  name: 'Q4 Invoices',
+  guidance: 'invoices received in Q4 2025',
+})
+
+// Sync to ensure results are populated
+await airstore.views.sync('ws_abc123', view.external_id)
+
+// List what matched
+const invoices = await airstore.fs.list('ws_abc123', { path: view.path })
+
+// Read each one
+for (const invoice of invoices) {
+  const content = await airstore.fs.read('ws_abc123', { path: invoice.path })
+  // Process the content...
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+
+<Card title="Tokens and mounting" icon="key" href="/sdk/guides/tokens-and-mounting">
+  Generate tokens so users can mount the filesystem locally.
+</Card>
+
+<Card title="Filesystem reference" icon="book" href="/sdk/reference/filesystem">
+  Full method reference for `client.fs`.
+</Card>
+
+</CardGroup>
