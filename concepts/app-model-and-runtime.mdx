@@ -1,11 +1,13 @@
 ---
 title: "App Model And Runtime"
-description: "Understand how one Capsule app definition becomes a running app for each app user."
+description: "How Capsule turns one app definition into a running app."
 ---
 
-When people ask what a Capsule app actually is, the shortest answer is: it is one Python definition that Capsule can run for real users.
+When people ask what a Capsule app actually is, the shortest answer is: it is one Python definition that Capsule can run for real users who sign into that app.
 
 That sounds simple, but it has a few consequences. The same `App` definition can describe the runtime, the chat handler, the queue page, the background jobs, the mounted storage, and the channels the app shows up in. `capsule serve` and `capsule deploy` both read from that same source of truth.
+
+Deploying the app also gives you a hosted product surface with its own authenticated users. The app definition is not just "the backend." It is the thing Capsule uses to run the actual product.
 
 ## How a real app is split
 
@@ -37,6 +39,12 @@ All of that is packaged off the same `App` definition. In practice, this means y
 Capsule runs the app inside a managed runtime per app user. You do not have to invent your own execution layer for sessions, channel traffic, tasks, or page-backed interactions.
 
 That same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app. The main thing that changes is where the requests come from, not what kind of app you are writing.
+
+## App-scoped users
+
+When you deploy a Capsule app, users sign into that app. They do not land in one shared global user pool across every Capsule project.
+
+That distinction matters because `access="authenticated"` pages, data handlers, and session context are all scoped to the deployed app. Two Capsule apps can have different user pools, different access policies, and different user-scoped data even if the same email signs into both.
 
 ## Runtime flow
 

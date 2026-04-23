@@ -1,6 +1,6 @@
 ---
 title: "Quickstart"
-description: "Build, serve, and deploy your first Capsule app in a few minutes."
+description: "Build, run, and deploy a small Capsule app."
 ---
 
 This is the fastest path from a Python file to a live Capsule app.
@@ -20,7 +20,7 @@ By the end you will have:
 - a local app with chat and a page
 - a real LLM-backed assistant
 - one small piece of session state
-- a successful hosted deploy
+- a hosted app users can sign into
 - a clear sense of where channels, tasks, filesystems, and pricing fit next
 
 ## 1. Add the model dependency and API key
@@ -121,6 +121,8 @@ capsule login
 
 This connects your local machine to the Capsule workspace so `serve`, `deploy`, and `secret` commands can talk to the platform.
 
+It is separate from the end-user sign-in flow your deployed app will use later. `capsule login` authenticates you as the builder; the hosted app gets its own user login flow.
+
 ## 4. Start the live dev loop
 
 ```bash
@@ -153,7 +155,7 @@ At this point you can already see the shape Capsule is pushing you toward:
 - the same app definition also owns the page surface
 - you can mix in collections, tasks, filesystems, or pricing without moving to a different stack
 
-If you want one extra piece of session state, make the system prompt aware of the user:
+If you want to see how hosted app auth reaches your handler, make the system prompt aware of the user:
 
 ```python
 @app.message()
@@ -171,6 +173,8 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
     await session.reply(text)
 ```
 
+On a hosted app, `session.user` is the signed-in user for that app. That is how the same app can personalize replies, gate pages, and store user-scoped data without adding a separate auth stack.
+
 ## 6. Deploy it
 
 When the local version looks good:
@@ -182,6 +186,8 @@ capsule deploy app:app
 Deploy packages the same app definition you just served locally and sends it to Capsule. The deploy output includes the hosted URL for the app.
 
 In other words, you are not maintaining a separate deployment config somewhere else. The Python code is the source of truth.
+
+Once the deploy is live, that hosted URL is the front door to your product. Users can sign into the app there. Capsule keeps those users scoped to this app, so a different deployed Capsule app can have a different user pool.
 
 ## 7. Add the next product surface
 

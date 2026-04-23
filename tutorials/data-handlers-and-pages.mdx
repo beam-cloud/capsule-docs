@@ -1,6 +1,6 @@
 ---
 title: "Data Handlers And Pages"
-description: "Build workflow pages with `@app.data`, `RequestContext.integrations`, Python DSL pages, and React pages."
+description: "Build pages with `@app.data(...)`, `RequestContext`, the UI DSL, and React."
 ---
 
 Pages get much more useful once they stop being static.
@@ -16,6 +16,8 @@ In practice, most real Capsule apps end up following the same shape:
 This is how you build things like inboxes, approval queues, review panels, and dashboards inside the same app as the assistant.
 
 This guide uses a mailbox-style workflow as the example because it is a good model for pages that talk to real external systems.
+
+After deploy, this becomes a real hosted app surface. Users sign into the app, authenticated pages and data handlers run in that app context, and user-specific integrations hang off that identity.
 
 ## What you are building
 
@@ -112,9 +114,11 @@ There are two important ideas here:
 Important rules:
 
 - handlers must return JSON-serializable values
-- `access="authenticated"` requires an authenticated user
+- `access="authenticated"` requires a signed-in user of this app
 - function parameters become query parameters
 - `RequestContext` is optional, but useful when you need the caller's identity or integrations
+
+On hosted apps, that auth boundary is app-scoped. A user signs into this deployed app, and then `ctx.user` and `useCapsule().user` refer to that app user.
 
 ## 3. Build the overview page in the Python DSL
 
@@ -169,10 +173,10 @@ app.add_page(
 Then build the React component:
 
 ```tsx
-import { Button, EmptyState, Layout, useCapsule, useData } from "@capsule/page"
+import { EmptyState, Layout, useCapsule, useData } from "@capsule/page"
 
 export default function Mailbox() {
-  const { login } = useCapsule()
+  const { user } = useCapsule()
   const threads = useData("threads", { params: { status: "needs-review" } })
 
   if (threads.loading) {
@@ -182,9 +186,8 @@ export default function Mailbox() {
   if (threads.data?.gmail_connected === false) {
     return (
       <EmptyState
-        title="Connect Gmail to open the mailbox"
-        description="The page needs the caller's Gmail integration before it can load thread data."
-        action={<Button onClick={() => login()}>Connect Gmail</Button>}
+        title="Gmail not connected"
+        description="This signed-in app user still needs a Gmail integration before the mailbox can load thread data."
       />
     )
   }
@@ -192,6 +195,7 @@ export default function Mailbox() {
   return (
     <Layout.Root>
       <Layout.ListPane width={360}>
+        <div>Signed in as {user?.email}</div>
         {threads.data?.threads?.map((thread) => (
           <div key={thread.thread_id}>
             <strong>{thread.subject}</strong>
@@ -210,8 +214,11 @@ export default function Mailbox() {
 This is the same pattern used in richer Capsule apps:
 
 - `useData(...)` calls the named Capsule data handler
-- the page gets authenticated, user-scoped data automatically
-- `useCapsule().login()` gives you a clean way to prompt the user to connect the missing integration
+- `access="authenticated"` means Capsule signs the user into this app before the page loads
+- `useCapsule().user` gives you the signed-in app user inside the page
+- once signed in, the page gets authenticated, user-scoped data automatically
+
+App sign-in and integration connection are separate concerns. Signing into the app gives you an app user. That user may still need to connect Gmail before the mailbox data handler can return live data. If you want a public page to prompt for sign-in, `useCapsule().login()` opens the app sign-in flow.
 
 ## 5. Decide when to use DSL pages versus React pages
 

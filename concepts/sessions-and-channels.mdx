@@ -1,11 +1,13 @@
 ---
 title: "Sessions And Channels"
-description: "Understand how Capsule keeps one session model across web chat, APIs, and external channels."
+description: "How sessions, replies, and channels work in Capsule."
 ---
 
 If a user talks to your app in the web UI today and Telegram tomorrow, you do not want two different state models. `Session` is the thing that keeps that experience coherent.
 
 Capsule gives you one conversation model across web chat, API calls, and named channel resources such as Slack, WhatsApp, and Telegram. `Session` ties those surfaces together. It carries identity, history, reply helpers, connected integrations, and scoped data for the current app user.
+
+That identity is app-scoped. When someone signs into a deployed Capsule app, sessions and authenticated surfaces are attached to that app's user record, not to one global user pool shared by every Capsule app.
 
 ## Why this matters
 
@@ -122,6 +124,8 @@ The older inline `Telegram(...)`, `Slack(...)`, and `WhatsApp(...)` channel obje
 - `owner_id` semantics for owner-scoped collections
 
 That is what lets the same handler support personal state, shared organization state, and anonymous or public experiences without inventing separate identity plumbing each time.
+
+It also explains why two deployed Capsule apps can have different user pools. The auth and session context belong to the current app.
 
 ## Related pages
 

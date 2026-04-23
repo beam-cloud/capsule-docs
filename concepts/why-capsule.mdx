@@ -1,22 +1,18 @@
 ---
 title: "Why Capsule"
-description: "See why Capsule is a platform for shipping agentic apps, not just a Python wrapper around a model."
+description: "How Capsule combines app auth, runtime, state, UI, tasks, and deploys in one app model."
 ---
 
-There are plenty of ways to get an LLM to answer a prompt. The hard part starts a day or two later, when you need the thing to behave like a product.
+If your app is more than a single model call, you usually need the same set of things: durable state, workflow pages, background work, integrations, storage, a clean deploy path, and users who can actually sign into the product.
 
-Maybe you need a queue page so an operator can review work. Maybe you need a background sync that keeps running after the chat turn ends. Maybe the app needs to remember state for each user, talk over Telegram, mount storage, or ask the user to connect Gmail.
-
-Capsule is for that stage.
-
-It gives you one place to define the assistant, the workflow surfaces around it, and the runtime that keeps the whole app running. You still write normal Python. Capsule takes care of the surrounding application machinery that usually turns a promising demo into a pile of glue code.
+Capsule puts those pieces in one app model. You still write normal Python, but you do not have to stitch together a separate runtime, queue, page backend, storage layer, and deployment story around it.
 
 ## What you write vs what Capsule manages
 
 | You write | Capsule manages |
 | --- | --- |
 | message handlers, pages, data handlers, and tasks | runtime boot, session routing, hot reload, and deploy packaging |
-| collections, settings, integrations, and filesystems | persistence, mounted storage, workspace assets, and auth plumbing |
+| collections, settings, integrations, and filesystems | persistence, mounted storage, workspace assets, app auth, and app user access |
 | app configuration such as channels, price, and keep-warm behavior | delivery surfaces, hosted URLs, channel binding, and deployed app infrastructure |
 
 That split is the reason Capsule feels faster than stitching together a model wrapper, a web stack, a worker queue, storage, and channel adapters yourself. You are still building the product logic. You are just not rebuilding the same scaffolding every time.
@@ -29,9 +25,12 @@ The first version of an agent is often a single handler. That is fine. But once 
 - the app needs workflow pages, not just free-form text
 - the app needs async work that should not block the reply
 - the app needs to show up in more than one place
+- the app needs users to sign into the product, with access scoped to that app
 - the app needs a deploy story that looks like a product, not a demo script
 
 Capsule is opinionated about that transition. It assumes the model call is only one piece of the app, and it gives you product primitives for the rest.
+
+That includes the auth boundary. When someone signs into a deployed Capsule app, they become a user of that app. Another Capsule app can have a different authenticated user set, even if the same email appears in both.
 
 ## One definition, multiple surfaces
 
@@ -50,6 +49,8 @@ That matters because it keeps the app legible as it grows. You do not end up wit
 ## A runtime per app user
 
 Capsule runs your app inside a managed, sandboxed runtime per app user. That gives you a consistent place for sessions, handlers, task execution, integrations, and mounted filesystems to live.
+
+The unit here is the app user, not a global Capsule identity. That is what lets one deployed app have its own user pool and its own authenticated surfaces.
 
 This is one of the biggest differences from a plain library. You are not just importing a chat helper. You are defining something Capsule can actually run, route, and expose as a product.
 

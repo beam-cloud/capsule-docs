@@ -1,6 +1,6 @@
 ---
 title: "UI And Pages"
-description: "Reference for DSL page widgets, React page registration, and page-building patterns."
+description: "Page registration, UI widgets, and React page patterns."
 ---
 
 ## Page registration
@@ -8,6 +8,8 @@ description: "Reference for DSL page widgets, React page registration, and page-
 Capsule supports two page models, and most real apps use both.
 
 The usual split is simple. Use the Python DSL for dashboards, metrics, settings, tables, and task views. Use React when the page starts to feel like a richer application surface, such as a mailbox, approval queue, or list-detail workflow.
+
+Both page types can be public or gated to signed-in users of the deployed app with `access="authenticated"`.
 
 ## Worked example
 
@@ -63,7 +65,7 @@ Arguments:
 | `name` | Sidebar label |
 | `icon` | Icon name |
 | `order` | Explicit page ordering |
-| `access` | `"public"` or `"authenticated"` |
+| `access` | `"public"` for open pages, or `"authenticated"` for signed-in users of this app |
 
 Example:
 
@@ -110,7 +112,7 @@ Arguments:
 | `component` | Path to the TSX component |
 | `packages` | Extra npm packages for the page bundle |
 | `order` | Explicit page ordering |
-| `access` | `"public"` or `"authenticated"` |
+| `access` | `"public"` for open pages, or `"authenticated"` for signed-in users of this app |
 
 Example:
 
@@ -195,7 +197,7 @@ React pages are built with the `@capsule/page` runtime. The most common helpers 
 - `useData(...)`
 - `useCollection(...)`
 - `useTheme()`
-- `useCapsule()`
+- `useCapsule()` for the current app user plus `login()` / `logout()`
 
 Common import pattern:
 
@@ -206,29 +208,32 @@ import { useCapsule, useCollection, useData, useTheme } from "@capsule/page"
 Example:
 
 ```tsx
-import { Button, EmptyState, useCapsule, useData, useTheme } from "@capsule/page"
+import { EmptyState, useCapsule, useData, useTheme } from "@capsule/page"
 
 export default function Mailbox() {
   const theme = useTheme()
-  const { login } = useCapsule()
+  const { user } = useCapsule()
   const threads = useData("threads", { params: { status: "needs-review" } })
 
   if (threads.data?.gmail_connected === false) {
     return (
       <EmptyState
-        title="Connect Gmail"
-        action={<Button onClick={() => login()}>Connect Gmail</Button>}
+        title="Gmail not connected"
+        description="This signed-in app user still needs a Gmail integration before the mailbox can load."
       />
     )
   }
 
   return (
     <div style={{ color: theme.color.foreground }}>
+      <p>Signed in as {user?.email}</p>
       <h2>Threads: {threads.data?.threads?.length ?? 0}</h2>
     </div>
   )
 }
 ```
+
+For `access="authenticated"` pages, Capsule handles the sign-in gate before the React page loads. Inside the page, `useCapsule().user` is the signed-in user for this app. If you want a public page to prompt for sign-in, `useCapsule().login()` opens the app sign-in flow.
 
 React pages are the right choice when you need custom interactivity or external packages. The Python DSL is usually faster when metrics, tables, charts, and settings widgets are enough.
 

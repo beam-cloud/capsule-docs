@@ -1,9 +1,9 @@
 ---
 title: "Pages And UI"
-description: "Choose between Capsule's Python UI DSL and custom React pages."
+description: "When to use the Python UI DSL versus React pages."
 ---
 
-Capsule pages let an app expose structured UI alongside chat.
+Capsule pages let an app expose structured UI alongside chat. Those pages can be public, or they can be reserved for signed-in users of the app.
 
 In practice, most apps use pages for one of two jobs: they either show the current state of the product, or they give someone a place to review and act on that state. Capsule gives you two page models for those jobs.
 
@@ -61,6 +61,8 @@ Pages can be:
 - `authenticated`
 
 Use `access="authenticated"` for dashboards or user-specific views and `access="public"` for landing or read-only pages.
+
+On a deployed app, `authenticated` means signed-in users of that specific app. Capsule handles the app login flow, and a different Capsule app can have a separate user pool.
 
 ## A naming pitfall
 

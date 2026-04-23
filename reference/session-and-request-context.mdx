@@ -1,11 +1,13 @@
 ---
 title: "Session And Request Context"
-description: "Reference for `Session`, `RequestContext`, messages, uploads, blocks, and runtime helpers."
+description: "Sessions, request context, messages, attachments, and runtime helpers."
 ---
 
 ## `Session`
 
 `Session` is the main runtime context for chat and API interactions. If your handler needs to know "who is talking?", "what happened earlier?", or "where should I send the reply?", the answer is usually on `Session`.
+
+In hosted apps, that identity is app-scoped. `Session` is not telling you about some global Capsule user. It is telling you about the current user of this deployed app.
 
 ### Worked example
 
@@ -42,7 +44,7 @@ In one handler, `Session` gives you:
 | Field | Meaning |
 | --- | --- |
 | `id` | Unique session id |
-| `user` | `UserInfo` for the current user |
+| `user` | `UserInfo` for the current app user |
 | `channel` | `SessionChannel` describing the transport |
 | `history` | Recent message history |
 | `data` | Per-session persistent key-value store |
@@ -60,6 +62,8 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
         f"text={msg.text}"
     )
 ```
+
+On hosted apps, `session.user` comes from the app's sign-in flow. The same email can appear in another Capsule app too, but it is still a separate app user in that other app's context.
 
 ### Common methods
 
@@ -158,7 +162,7 @@ Use `RequestContext` in `@app.data()` and `@app.endpoint()` handlers when you ne
 
 | Field | Meaning |
 | --- | --- |
-| `user` | `UserInfo` for the caller |
+| `user` | `UserInfo` for the caller as an app user |
 | `integrations` | Connected integrations available to the caller |
 | `authenticated` | Boolean auth state |
 | `request` | Underlying request object when available |

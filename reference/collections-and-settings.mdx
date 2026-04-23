@@ -1,6 +1,6 @@
 ---
 title: "Collections And Settings"
-description: "Reference for `CollectionRef`, collection scopes, typed columns, and the settings API."
+description: "Collections, scopes, columns, and settings."
 ---
 
 Collections and settings are easy to mix up at first because they both store data. The difference is simpler than it sounds.
@@ -52,14 +52,14 @@ Capsule collections support four scopes:
 | Scope | Meaning |
 | --- | --- |
 | `app` | Shared across the whole app |
-| `user` | Isolated per authenticated user |
+| `user` | Isolated per authenticated app user |
 | `owner` | Shared across an owner or organization |
 | `session` | Isolated to a single session |
 
 A practical way to read the scopes:
 
 - `app` for a shared lead table
-- `user` for saved bookmarks
+- `user` for saved bookmarks for one user of this app
 - `owner` for organization-wide reports
 - `session` for temporary scratch notes
 
