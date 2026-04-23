@@ -33,7 +33,7 @@
     }
   },
   "icons": {
-    "library": "lucide"
+    "library": "fontawesome"
   },
   "navigation": {
     "tabs": [

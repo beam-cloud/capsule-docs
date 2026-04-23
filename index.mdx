@@ -1,21 +1,21 @@
 ---
 title: "Introduction"
-description: "Capsule is a Python framework and runtime for building and deploying agentic apps with their own users."
+description: "Capsule is a Python framework and runtime for building and deploying AI apps."
 ---
 
-Capsule is a Python framework and runtime for building agentic apps. It lets you:
+It lets you:
 
-- Build chat apps with persistent sessions and LLM-ready message history
-- Deploy a hosted app that users can sign into with built-in app auth
-- Add pages, dashboards, and workflow UI next to the assistant
+- Build chat apps with persistent sessions history
+- Deploy hosted UIs that users can sign into with batteries-included auth
 - Run background tasks and schedules without a separate worker stack
+- Add custom pages, dashboards, and workflow components
 - Let signed-in users connect integrations like Gmail, GitHub, Slack, or AWS
 - Store records in collections, mount filesystems, and use workspace secrets
-- Deploy the same app to hosted chat, APIs, and external channels like Telegram, Slack, and WhatsApp
+- Connect external channels like Telegram, Slack, and WhatsApp to your app
 
 You define the app in Python. Capsule handles the runtime, routing, hosted app shell, and deployment around it.
 
-When you deploy, users sign into your app itself. Each deployed Capsule app has its own authenticated users and access rules, so one app's user pool stays separate from another's.
+When you deploy, you get a fully self contained product. Each deployed Capsule app has its own authenticated users and access rules, so one app's user pool stays separate from another's.
 
 Here is a complete, minimal example of an LLM-backed Capsule app:
 
