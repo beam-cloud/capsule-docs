@@ -1,0 +1,44 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap");
+
+:root {
+  font-variant-numeric: tabular-nums;
+}
+
+body,
+#body-content,
+#content-area,
+#sidebar,
+#table-of-contents,
+#navbar,
+footer {
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code,
+pre,
+code-block,
+method-pill,
+method-nav-pill,
+field {
+  font-family: "DM Mono", "SF Mono", "Menlo", "Consolas", monospace;
+}
+
+#topbar-cta-button,
+#search-bar-entry,
+#search-bar-entry-mobile,
+#search-input {
+  border-radius: 999px;
+}
+
+#topbar-cta-button {
+  font-weight: 500;
+}
+
+callout,
+code-block,
+accordion,
+tabs {
+  border-radius: 10px;
+}

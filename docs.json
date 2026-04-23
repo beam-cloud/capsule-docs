@@ -3,9 +3,22 @@
   "theme": "linden",
   "name": "Capsule",
   "colors": {
-    "primary": "#1565C0",
-    "light": "#38BDF8",
-    "dark": "#1A1D21"
+    "primary": "#2563EB",
+    "light": "#8590E8",
+    "dark": "#8590E8"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "color": {
+      "light": "#FAF9F6",
+      "dark": "#252321"
+    }
+  },
+  "logo": {
+    "light": "/logo-light.svg",
+    "dark": "/logo-dark.svg"
   },
   "favicon": "/favicon.svg",
   "fonts": {
@@ -16,8 +29,11 @@
     },
     "body": {
       "family": "DM Sans",
-      "weight": 400
+      "weight": 450
     }
+  },
+  "icons": {
+    "library": "lucide"
   },
   "navigation": {
     "tabs": [
