@@ -3,7 +3,7 @@ title: "App Model And Runtime"
 description: "How Capsule turns one app definition into a running app."
 ---
 
-When people ask what a Capsule app actually is, the shortest answer is: it is one Python definition that Capsule can run for real users who sign into that app.
+When people ask what a Capsule app actually is, the shortest answer is: it is a self contained definition for an AI product.
 
 That sounds simple, but it has a few consequences. The same `App` definition can describe the runtime, the chat handler, the queue page, the background jobs, the mounted storage, and the channels the app shows up in. `capsule serve` and `capsule deploy` both read from that same source of truth.
 
