@@ -7,6 +7,34 @@ description: "Reference for runtime images, theming, filesystem mounts, pricing,
 
 `cpsl.Image` defines the runtime environment for your app. If the app needs Python packages, system packages, or setup commands, this is where they go.
 
+### Worked example
+
+This is a realistic app-level deployment config:
+
+```python
+app = cpsl.App(
+    name="support-ops",
+    image=cpsl.Image(
+        python_packages=["openai", "pypdf"],
+        apt_packages=["poppler-utils"],
+    ),
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("support-ops")},
+    keep_warm_seconds=30,
+    price=1500,
+    pricing_type="monthly",
+)
+
+app.theme(
+    preset="light",
+    accent="#1565C0",
+    font_sans="DM Sans, sans-serif",
+    tagline="Mailbox triage and support operations",
+)
+```
+
+This is what makes Capsule feel like an application platform instead of a model wrapper: runtime dependencies, branding, storage, warm behavior, and pricing all live next to the app code.
+
 ### Constructor
 
 ```python

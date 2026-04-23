@@ -7,6 +7,36 @@ description: "Reference for `Session`, `RequestContext`, messages, uploads, bloc
 
 `Session` is the main runtime context for chat and API interactions. If your handler needs to know "who is talking?", "what happened earlier?", or "where should I send the reply?", the answer is usually on `Session`.
 
+### Worked example
+
+This is the kind of session-aware flow you see in a real app:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    if "sync" in (msg.text or "").lower():
+        handle = await sync_threads.submit(session=session)
+        await session.show_task(handle, message="Mailbox sync started")
+        return
+
+    await session.notify("Thinking...")
+
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a support operations copilot."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
+```
+
+In one handler, `Session` gives you:
+
+- the live conversation history for the model call
+- a reply target for text and structured blocks
+- a way to surface background work back into the chat UI
+
 ### Core fields
 
 | Field | Meaning |
@@ -47,6 +77,28 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
 | `await show_image(source, alt="", width=None)` | Render an image inline |
 | `await prompt_file(...)` | Block until the user uploads a file |
 | `await prompt_integration(...)` | Block until the user connects an integration |
+
+Real LLM usage usually looks like this:
+
+```python
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a concise Capsule assistant."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
+```
+
+`session.chat_messages(msg)` is useful because it already merges Capsule history into the alternating `user` / `assistant` format most LLM APIs expect.
 
 ## Streaming helpers
 
@@ -114,9 +166,14 @@ Use `RequestContext` in `@app.data()` and `@app.endpoint()` handlers when you ne
 Example:
 
 ```python
-@app.data("stats", access="authenticated")
-def get_stats(ctx: cpsl.RequestContext):
-    return {"viewer": ctx.user.email}
+@app.data("threads", access="authenticated")
+async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"threads": [], "gmail_connected": False}
+
+    rows = await threads.find(filter={"status": status} if status else {}, limit=50)
+    return {"threads": rows, "gmail_connected": True}
 ```
 
 If a page or endpoint needs to know who is calling it, `RequestContext` is the right abstraction. If a chat turn needs to know who is calling it, you already have `Session`.

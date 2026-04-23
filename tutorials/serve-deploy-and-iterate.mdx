@@ -5,7 +5,7 @@ description: "Use the Capsule CLI for the full development loop: bootstrap, serv
 
 This tutorial is the day-to-day loop for shipping on Capsule.
 
-The point is not just to memorize CLI commands. The point is to see how the Python app definition, the managed runtime, workspace assets, and hosted deploys fit into one product workflow.
+The goal is not to memorize CLI commands. The goal is to see how the Python app definition, the managed runtime, workspace assets, and hosted deploys fit together as one workflow.
 
 ## 1. Scaffold a project
 
@@ -72,7 +72,7 @@ capsule fs create reports
 capsule channel create my-telegram-bot --type telegram -c bot_token=123:ABC
 ```
 
-These assets are part of what makes Capsule feel like a platform rather than a thin deploy wrapper. Channels, secrets, and filesystems are shared workspace resources that plug directly into the app definition.
+This is one of the places where Capsule starts to feel like a platform instead of a thin deploy wrapper. Channels, secrets, and filesystems are shared workspace resources that plug directly into the app definition.
 
 Useful inspection commands:
 

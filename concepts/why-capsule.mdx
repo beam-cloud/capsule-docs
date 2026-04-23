@@ -3,18 +3,13 @@ title: "Why Capsule"
 description: "See why Capsule is a platform for shipping agentic apps, not just a Python wrapper around a model."
 ---
 
-Capsule is for the moment when an agent stops being a demo and starts becoming a product.
+There are plenty of ways to get an LLM to answer a prompt. The hard part starts a day or two later, when you need the thing to behave like a product.
 
-Once real users are involved, you usually need far more than a single chat handler:
+Maybe you need a queue page so an operator can review work. Maybe you need a background sync that keeps running after the chat turn ends. Maybe the app needs to remember state for each user, talk over Telegram, mount storage, or ask the user to connect Gmail.
 
-- a sandboxed, runtime-managed environment per app user
-- built-in communication surfaces such as web chat, Slack, WhatsApp, Telegram, and API access
-- tasks and schedules for long-running or recurring work
-- pages, collections, and settings for structured product UX
-- mounted filesystems, workspace secrets, and user integrations
-- hosted deploys, app hostnames, custom domains, and monetization
+Capsule is for that stage.
 
-Capsule bundles that stack into one platform and exposes it through one Python app definition.
+It gives you one place to define the assistant, the workflow surfaces around it, and the runtime that keeps the whole app running. You still write normal Python. Capsule takes care of the surrounding application machinery that usually turns a promising demo into a pile of glue code.
 
 ## What you write vs what Capsule manages
 
@@ -24,47 +19,66 @@ Capsule bundles that stack into one platform and exposes it through one Python a
 | collections, settings, integrations, and filesystems | persistence, mounted storage, workspace assets, and auth plumbing |
 | app configuration such as channels, price, and keep-warm behavior | delivery surfaces, hosted URLs, channel binding, and deployed app infrastructure |
 
-That split is the core reason Capsule feels faster than stitching together a model wrapper, a web stack, a worker queue, a storage layer, and separate channel adapters.
+That split is the reason Capsule feels faster than stitching together a model wrapper, a web stack, a worker queue, storage, and channel adapters yourself. You are still building the product logic. You are just not rebuilding the same scaffolding every time.
 
-## Product pillars
+## What changes when the app gets real
 
-### One app definition
+The first version of an agent is often a single handler. That is fine. But once users depend on it, the shape usually changes:
 
-`cpsl.App` is the center of the system. You describe the runtime, chat handlers, pages, tasks, filesystems, integrations, and pricing in one place. `capsule serve` and `capsule deploy` both read from that same definition.
+- the app needs durable state, not just chat history
+- the app needs workflow pages, not just free-form text
+- the app needs async work that should not block the reply
+- the app needs to show up in more than one place
+- the app needs a deploy story that looks like a product, not a demo script
 
-### Sandboxed runtime per app user
+Capsule is opinionated about that transition. It assumes the model call is only one piece of the app, and it gives you product primitives for the rest.
 
-Capsule runs the app inside a managed runtime so you do not need to build your own execution layer around every app user interaction. That makes it much easier to reason about state, isolation, and product behavior as the app grows.
+## One definition, multiple surfaces
 
-### Built-in channels and delivery surfaces
+`cpsl.App` sits at the center of the system. The same definition can declare:
 
-Capsule is not limited to one chat box. A single app can show up in built-in web chat, API-driven entry points, and named channel resources such as Slack, WhatsApp, and Telegram without rewriting the core logic around each transport.
+- the runtime image
+- chat handlers
+- pages and data handlers
+- collections and settings
+- tasks and schedules
+- integrations, filesystems, and secrets
+- channels, pricing, and deploy behavior
 
-### Task execution without a second stack
+That matters because it keeps the app legible as it grows. You do not end up with chat in one place, the queue page in another, background jobs in a third, and deployment knobs somewhere off to the side.
 
-Long-running work, retries, recurring syncs, and cron jobs are part of the platform. You do not have to bolt on a separate worker system just to keep the chat loop responsive.
+## A runtime per app user
 
-### Filesystems, secrets, and integrations
+Capsule runs your app inside a managed, sandboxed runtime per app user. That gives you a consistent place for sessions, handlers, task execution, integrations, and mounted filesystems to live.
 
-Most agentic apps need persistent file storage, workspace-owned credentials, and end-user connections to external systems. Capsule gives you mounted filesystems, secrets, and integrations as first-class primitives instead of leaving each app to invent its own conventions.
+This is one of the biggest differences from a plain library. You are not just importing a chat helper. You are defining something Capsule can actually run, route, and expose as a product.
 
-### Deployable apps, not just code samples
+## Product primitives instead of app glue
 
-Capsule apps can be served locally, deployed to hosted URLs, connected to channels and domains, and priced as products. The goal is not only to help you prototype. The goal is to help you ship.
+Real apps need a few boring but important things:
+
+- durable records
+- long-running work
+- authenticated connections to outside systems
+- storage for generated files and uploads
+- workflow UI for operators or end users
+
+Capsule gives you those pieces directly. Collections, tasks, pages, integrations, filesystems, and settings are all part of the same app model. That means you can spend your time deciding what the product should do instead of deciding which second system should own each concern.
 
 ## When Capsule is the right fit
 
-Capsule works especially well when the model call is only one part of the application:
+Capsule is a strong fit when the model is only one part of the application:
 
 - customer-facing assistants that need real product surfaces
 - multi-channel agents that have to meet users where they already are
 - internal copilots with dashboards, review flows, and operator tasks
 - vertical AI products that need files, schedules, integrations, and durable state
 
-If all you need is a one-off script or a single webhook, Capsule may be more than you need. If you are building an agentic app that users will actually live in, Capsule is designed for that shape of problem.
+If all you need is a one-off script or a single webhook, Capsule may be more machinery than you want. If you are building something users will actually live in, the trade starts to look very good.
 
 ## Where to go next
 
+- [Real App Anatomy](/concepts/real-app-anatomy)
 - [App Model And Runtime](/concepts/app-model-and-runtime)
 - [Quickstart](/quickstart)
 - [Sessions And Channels](/concepts/sessions-and-channels)

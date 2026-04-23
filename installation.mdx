@@ -3,12 +3,14 @@ title: "Installation"
 description: "Install Capsule, authenticate to your workspace, and set up the Python and CLI toolchain for serving and deploying apps."
 ---
 
-Capsule has two pieces that work together:
+Installing Capsule is straightforward: install `cpsl`, make sure the `capsule` CLI is on your path, then log into your workspace.
 
-- `cpsl`, the Python app API you use to define handlers, pages, collections, tasks, channels, and pricing
-- `capsule`, the CLI that talks to the Capsule platform for `login`, `serve`, `deploy`, secrets, channels, and filesystems
+One small thing is worth calling out early. `capsule serve` and `capsule deploy` are not just local helper scripts. They talk to the Capsule platform, so logging in is part of normal local setup, not something you wait to do later.
 
-If you want the shortest path from code to a live agentic app, install the package, log into your workspace, and then move straight into the [Quickstart](/quickstart).
+The `cpsl` package gives you both pieces you need:
+
+- `cpsl`, the Python API you write your app with
+- `capsule`, the CLI you use for `login`, `serve`, `deploy`, secrets, channels, and filesystems
 
 ## Requirements
 
@@ -61,15 +63,15 @@ serve
 
 ## Authenticate to your workspace
 
-Before you use the Capsule platform from your local machine, log in:
+Before you do anything with `serve` or `deploy`, log in:
 
 ```bash
 capsule login
 ```
 
-This opens a browser, authenticates against your workspace, and stores the token locally so `serve`, `deploy`, `secret`, `channel`, and `fs` commands can talk to Capsule.
+This opens a browser, authenticates against your workspace, and stores the token locally so the CLI can talk to Capsule.
 
-This step matters earlier than people often expect. `capsule serve` is not just a local script runner. It boots the Capsule dev loop around your app definition, so workspace auth is part of the normal setup.
+This is the step people often skip on the first pass. If `capsule serve` feels like it should work without authentication, that is a fair guess. In practice, it is booting Capsule's dev loop around your app definition, so workspace auth is part of the normal path.
 
 If you are targeting a local gateway, set the gateway URL first:
 
@@ -80,7 +82,7 @@ capsule login
 
 ## Scaffold a project
 
-To start from a template instead of a blank file:
+If you would rather start from a template than a blank `app.py`, use `bootstrap`:
 
 ```bash
 capsule bootstrap my-agent-app
@@ -92,17 +94,12 @@ The bootstrap command can generate:
 - `chatbot` for a BAML-backed chat app
 - `dashboard` for chat plus a custom React page
 
-## What gets installed
-
-The `cpsl` package includes both the Python app API and the CLI:
-
-- `cpsl.App`, `cpsl.Session`, `cpsl.Image`, `cpsl.Secret`, and the rest of the app-building surface
-- the `capsule` CLI for workspace auth, live serve, deploys, secrets, channels, and filesystems
+The `minimal` template is good if you want to understand the smallest possible app. `dashboard` is a better starting point if you already know you want chat plus a custom page.
 
 ## Next steps
 
-- Follow the [Quickstart](/quickstart) to go from one Python file to a live Capsule app.
-- Read [Why Capsule](/concepts/why-capsule) if you want the platform story before diving into APIs.
-- Use [First Chat App](/tutorials/first-chat-app) if you want a fuller walkthrough.
-- See [CLI Reference](/reference/cli) for every command and subcommand.
+- Follow the [Quickstart](/quickstart) to build and serve your first app.
+- Read [Why Capsule](/concepts/why-capsule) if you want the product story before you dive deeper.
+- Use [First Chat App](/tutorials/first-chat-app) if you want the first non-trivial example right away.
+- See [CLI Reference](/reference/cli) when you want the full command surface.
 

@@ -3,60 +3,114 @@ title: "Capsule"
 description: "Build, deploy, and monetize agentic apps with a few lines of Python."
 ---
 
-Capsule is the fastest way to build an agentic app.
+Most agent demos feel good on day one.
 
-You write one Python app definition. Capsule gives you the rest of the product surface around the model call: a sandboxed, runtime-managed environment per app user, built-in channels, tasks and schedules, mounted filesystems, secrets, integrations, hosted deploys, and monetization.
+Day two is where the trouble starts. You need somewhere to store real state, a page to review work, a background loop that keeps running after the reply, a way to reach users over more than one channel, and a deploy story that looks like a product instead of a script.
 
-If you have ever built a promising agent demo and then immediately needed real state, background work, messaging channels, storage, deploys, and a way to sell the app, that is the gap Capsule is meant to close.
+Capsule is built for that moment. You define the app once in Python, and Capsule gives you the runtime and product surfaces around it.
+
+## A real Capsule app has a shape
+
+Most real Capsule apps end up with the same few moving parts:
+
+- an app shell that declares runtime, integrations, collections, pages, and pricing
+- one or more workflow pages where operators review or act on data
+- a chat handler that routes requests, triggers work, and streams analysis
+- tasks and schedules that keep the system moving in the background
+- hosted deploys and channels that turn the code into a product users can live in
 
 ```python
 import cpsl
+import cpsl.ui as ui
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
 
 app = cpsl.App(
-    name="support-assistant",
-    image=cpsl.Image(),
-    channels=[cpsl.Channel("support-telegram")],
-    filesystems={"/data": cpsl.FileSystem("support-data")},
-    price=1500,
+    name="ops-copilot",
+    image=cpsl.Image(python_packages=["openai"]),
+    channels=[cpsl.Channel("ops-telegram")],
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("ops-data")},
+    price=2000,
     pricing_type="monthly",
 )
 
+app.add_integration("aws")
+
 tickets = app.collection(
     "tickets",
-    columns=["customer", "status", "summary"],
-    scope="app",
+    columns=["customer", "status", "summary", "priority"],
+    scope="owner",
 )
+
+app.setting("auto_sync", scope="owner", type=bool, default=True)
 
 
 @app.page("Queue", icon="list-todo")
 def queue_page():
-    return cpsl.ui.Page([cpsl.ui.Table(tickets)])
+    return ui.Page(
+        [
+            ui.Row(
+                [
+                    ui.Metric("Open Tickets", value=18),
+                    ui.Metric("High Priority", value=4),
+                ]
+            ),
+            ui.Divider(),
+            ui.Toggle("Auto sync", setting="auto_sync"),
+            ui.Table(tickets),
+        ]
+    )
+
+
+@app.data("ticket_summary", access="authenticated")
+async def ticket_summary():
+    open_tickets = await tickets.count({"status": {"$ne": "closed"}})
+    return {"open_tickets": open_tickets}
 
 
 @app.task()
-async def summarize_ticket(ticket_id: str):
-    ...
+async def sync_tickets(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing external systems...")
+    # External sync logic would go here.
 
 
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    if msg.text.startswith("summarize "):
-        task_handle = await summarize_ticket.submit(
-            msg.text.removeprefix("summarize ").strip()
-        )
-        await session.show_task(task_handle)
+    if "sync" in msg.text.lower():
+        handle = await sync_tickets.submit(session=session)
+        await session.show_task(handle, message="Ticket sync started")
         return
 
-    await session.reply("Ready to help.")
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an operations copilot. Help the user understand "
+                    "what is happening in the queue, recommend next actions, "
+                    "and explain when tasks, pages, or integrations should be used."
+                ),
+            },
+            *session.chat_messages(msg),
+        ],
+    )
+
+    await session.reply(
+        response.choices[0].message.content or "I could not generate a reply."
+    )
 ```
 
-That one file already defines:
+You do not need every line of that on day one. The point is to show the shape:
 
-- the Python runtime
-- chat and external channels
-- pages and durable data
-- background task execution
-- mounted storage and product pricing
+- `App(...)` defines the product shell
+- collections and settings hold operating state
+- pages give the user somewhere to review and control work
+- tasks keep slower work out of the chat turn
+- the assistant sits inside the product instead of being the entire product
 
 Run it locally with:
 
@@ -64,59 +118,45 @@ Run it locally with:
 capsule serve app:app
 ```
 
-## What Capsule gives you
-
-Capsule is for teams shipping real agentic products, not just model demos. Out of the box you get:
-
-- sandboxed, runtime-managed execution per app user
-- built-in web chat plus channel support for Slack, WhatsApp, Telegram, and API-driven access
-- collections, settings, pages, and data handlers for product state and UI
-- tasks and schedules for background work, retries, and cron jobs
-- mounted filesystems, workspace secrets, and user integrations
-- hosted deploys, app hostnames, custom domains, and monetization hooks
-
-The Python API is still the thing you code against, but it is only one piece of the story. Capsule is the platform that runs and ships the app.
-
-## The platform model
-
-There are three layers worth understanding early:
-
-1. `cpsl.App` is your app definition. It declares handlers, pages, data, runtime requirements, filesystems, channels, and pricing.
-2. Capsule runs that app definition inside its managed runtime and exposes it through chat, pages, APIs, and external channels.
-3. Workspace resources such as channels, secrets, filesystems, and deployed apps plug into the same definition instead of living in separate systems.
-
-If you keep that model in mind, the rest of the docs read much more naturally than if you treat Capsule like a standalone library.
+If you read that example and thought "this looks more like an app shell than a model wrapper," that is exactly the point. Capsule gives you a managed runtime per app user, built-in chat and channel support, pages, collections, tasks, storage, secrets, deploys, and pricing in the same app definition.
 
 ## Start here
 
 If you are new to Capsule, follow this order:
 
 1. [Installation](/installation) to install `cpsl`, log into your workspace, and verify the CLI.
-2. [Quickstart](/quickstart) to go from one Python file to a live Capsule app.
-3. [Why Capsule](/concepts/why-capsule) to see the platform story in one place.
-4. [App Model And Runtime](/concepts/app-model-and-runtime) to understand what `serve` and `deploy` actually do.
-5. [Build Guides](/tutorials/first-chat-app) when you are ready to add state, UI, tasks, and integrations.
-6. [Python App API](/reference/app-api) when you want exact behavior for `cpsl.App` and related APIs.
+2. [Quickstart](/quickstart) to build the smallest useful app.
+3. [Real App Anatomy](/concepts/real-app-anatomy) to see how a real Capsule product is assembled.
+4. [First Chat App](/tutorials/first-chat-app) to learn the chat-orchestrator pattern.
+5. [Data Handlers And Pages](/tutorials/data-handlers-and-pages) to add workflow UI backed by real data.
+6. [App Model And Runtime](/concepts/app-model-and-runtime) when you want to understand what `serve` and `deploy` actually do.
+7. [Python App API](/reference/app-api) when you want exact API behavior.
 
-## What will you build?
+That order works well because it starts from the smallest useful app and then immediately shows how real apps grow.
 
-Capsule is a good fit when the agent needs to ship as a product instead of staying as a prompt wrapper. Common patterns include:
+## What real apps usually become
 
-- multi-channel assistants that need to work in web chat, Telegram, Slack, or WhatsApp
-- internal copilots with pages, review flows, and long-running tasks
-- customer-facing apps with hostnames, domains, and pricing
-- operational or research tools that mix chat, data handlers, files, and scheduled jobs
+A Capsule app often grows in a pretty familiar sequence:
+
+- start with one useful assistant
+- add collections for the operating state
+- add a dashboard or queue page
+- connect one real integration
+- push slow or recurring work into tasks and schedules
+- deploy the same app to hosted chat, API access, or external channels
+
+The nice part is that you are not re-platforming the app each time it gets more real. The same app definition keeps stretching to fit the next layer of the product.
 
 ## Example apps
 
 The repository ships a set of examples worth reading once you have the basics down:
 
-- `echo` for the smallest chat app
+- `telegram_channel` for a real OpenAI-backed assistant that works in web chat and Telegram
 - `platform_test` for collections, scopes, auth, and custom pages
 - `custom_pages` and `nootropics` for data handlers, DSL pages, React pages, and theme work
 - `test_suite` for tasks, schedules, TaskBoard, and integration prompts
-- `infra_analyst` for owner-scoped collections, streaming replies, and pricing
+- `infra_analyst` for streaming replies, integrations, owner-scoped data, and richer app behavior
 
-These docs use those examples as source material, but the tutorials are written to be simpler and more focused than the raw example apps.
+These docs use the examples as source material, but the guides try to explain why the pieces belong together so you can adapt the pattern to your own product.
 
 Browse the repository examples here: [beam-cloud/capsule](https://github.com/beam-cloud/capsule/tree/main/sdk/examples)

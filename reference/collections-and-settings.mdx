@@ -3,6 +3,12 @@ title: "Collections And Settings"
 description: "Reference for `CollectionRef`, collection scopes, typed columns, and the settings API."
 ---
 
+Collections and settings are easy to mix up at first because they both store data. The difference is simpler than it sounds.
+
+Collections hold the records your app works on. Settings hold the knobs people use to control how the app behaves.
+
+Once that distinction clicks, the rest of the page reads much more naturally.
+
 ## Collection scopes
 
 Collections and settings are related, but they solve different problems:
@@ -10,7 +16,36 @@ Collections and settings are related, but they solve different problems:
 - collections are for records
 - settings are for configuration
 
-Once that distinction is clear, the API is much easier to reason about.
+## Worked example
+
+This is a common production shape:
+
+```python
+threads = app.collection(
+    "threads",
+    columns=[
+        cpsl.Column("subject"),
+        cpsl.Column("sender", type="email"),
+        cpsl.Column("status", type="status"),
+        cpsl.Column("priority"),
+    ],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+    paginate=25,
+)
+
+app.setting("show_closed_threads", scope="owner", type=bool, default=False)
+app.setting(
+    "default_tab",
+    scope="owner",
+    type=str,
+    default="all",
+    options=["all", "needs-review", "waiting", "closed"],
+)
+```
+
+Here the collection holds the workflow records and the settings hold operator preferences. That is the split most apps want.
 
 Capsule collections support four scopes:
 
@@ -21,7 +56,7 @@ Capsule collections support four scopes:
 | `owner` | Shared across an owner or organization |
 | `session` | Isolated to a single session |
 
-A practical example:
+A practical way to read the scopes:
 
 - `app` for a shared lead table
 - `user` for saved bookmarks
@@ -30,7 +65,7 @@ A practical example:
 
 ## `cpsl.Column`
 
-Use `cpsl.Column` to give a collection column metadata:
+Use `cpsl.Column` when the table needs more than a bare field name. It lets you tell Capsule how a column should be understood and rendered.
 
 ```python
 cpsl.Column("status", type="status")
@@ -96,13 +131,18 @@ Inserted documents get both `_id` and `id`.
 Typical CRUD flow:
 
 ```python
-created = await contacts.insert_one(
-    {"name": "Ada", "email": "ada@example.com", "status": "active"}
+created = await threads.insert_one(
+    {
+        "subject": "Renewal review",
+        "sender": "ops@example.com",
+        "status": "needs-review",
+        "priority": "high",
+    }
 )
 
-row = await contacts.find_one({"_id": created["_id"]})
-rows = await contacts.find({"status": "active"}, limit=25, sort={"name": 1})
-count = await contacts.count()
+row = await threads.find_one({"_id": created["_id"]})
+rows = await threads.find({"status": "needs-review"}, limit=25, sort={"priority": 1})
+count = await threads.count()
 ```
 
 ## Update behavior
@@ -110,13 +150,13 @@ count = await contacts.count()
 Plain update dicts are treated as patches and automatically wrapped in `$set`:
 
 ```python
-await contacts.update_one({"_id": contact_id}, {"status": "inactive"})
+await threads.update_one({"_id": thread_id}, {"status": "waiting"})
 ```
 
 Operator documents pass through unchanged:
 
 ```python
-await contacts.update_one({"_id": contact_id}, {"$inc": {"touches": 1}})
+await threads.update_one({"_id": thread_id}, {"$inc": {"review_count": 1}})
 ```
 
 Do not mix plain keys and operator keys in one update document.
@@ -129,16 +169,16 @@ Inside a live session, `session.db` gives you a scoped database proxy:
 await session.db.bookmarks.insert_one({"title": "Capsule"})
 ```
 
-This is especially convenient for `user`, `owner`, and `session` collections.
+This is especially convenient for `user`, `owner`, and `session` collections, where the live session already knows which scoped database it should be talking to.
 
 Example:
 
 ```python
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    await session.db.bookmarks.insert_one({"title": msg.text})
-    total = await session.db.bookmarks.count()
-    await session.reply(f"Bookmarks: {total}")
+    await session.db.review_notes.insert_one({"note": msg.text})
+    total = await session.db.review_notes.count()
+    await session.reply(f"Review notes in this scope: {total}")
 ```
 
 ## Settings declarations
@@ -184,9 +224,7 @@ await app.settings.set("daily_goal", 5)
 all_values = await app.settings.get_all()
 ```
 
-Settings are stored in a reserved backing collection and scoped using the same identity rules as collections.
-
-It is common to pair settings with UI controls:
+Settings are stored in a reserved backing collection and scoped using the same identity rules as collections. In practice, you mostly notice this because settings and pages fit together cleanly:
 
 ```python
 @app.page("Preferences")
@@ -202,10 +240,7 @@ def preferences():
 
 ## Practical guidance
 
-- Use collections for records.
-- Use settings for configuration.
-- Use `session.data` for conversational scratch state.
-- Use typed `Column` metadata when the table should render richer values or better labels.
+Use collections for records the app needs to query later. Use settings for configuration that users or operators should be able to tweak. Use `session.data` for conversational scratch state that only matters inside the current session. Add typed `Column` metadata when the table needs richer rendering or clearer labels.
 
 ## See also
 

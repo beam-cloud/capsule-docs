@@ -3,6 +3,8 @@ title: "Tasks And Scheduling"
 description: "Use Capsule's built-in task execution model for background work, retries, cron jobs, and task-aware UI."
 ---
 
+If your app needs to do real work beyond one chat reply, this is where that work belongs.
+
 Capsule has a built-in task execution model, so you do not need a separate worker service just to run background jobs or recurring automation.
 
 Tasks and schedules let Capsule apps keep the chat loop responsive while still doing real work.
@@ -29,6 +31,18 @@ They are useful for:
 
 Tasks return `TaskHandle` objects from `.submit()` and `.schedule()`.
 
+## What belongs in a task?
+
+As a rule of thumb, put work in a task when any of these are true:
+
+- it talks to an external system
+- it might take more than a quick request-response turn
+- it should retry safely
+- the user should be able to leave the page while it keeps running
+- the result should show up later in collections or a workflow page
+
+Good examples are inbox syncs, report generation, attachment processing, enrichment jobs, or any state transition with real side effects.
+
 ## Schedules
 
 Schedules are declared with `@app.schedule(cron)` or `@cpsl.schedule(cron)`.
@@ -50,6 +64,16 @@ Capsule has first-class task UI:
 - `cpsl.ui.TaskBoard(...)` renders a full-page kanban view
 
 That means background execution is part of the product surface, not just an implementation detail.
+
+## How background work stays observable
+
+Capsule gives you a few ways to make async work visible to the user:
+
+- `session.show_task(handle)` for inline task cards from chat
+- `TaskBoard(...)` for page-level visibility
+- collections and data handlers for richer audit trails or workflow state
+
+That combination matters. Real apps need users to trust that work was started, is still running, and either completed or failed for a reason.
 
 ## Runtime context
 
@@ -79,6 +103,17 @@ async def build_report(...):
 ```
 
 This is especially useful for idempotent jobs, recurring syncs, and user-triggered retries.
+
+## How background work stays safe
+
+The safety model is a mix of ordinary engineering and Capsule primitives:
+
+- use `lock=` when duplicate work would be harmful
+- use `retries=` when a task should self-heal from transient failures
+- keep the side-effecting code inside the task instead of the chat turn
+- write the resulting state back to collections so pages and later turns can inspect it
+
+The model should help decide what to do. The task should own doing it safely.
 
 ## Related pages
 

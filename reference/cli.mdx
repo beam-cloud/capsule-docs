@@ -5,7 +5,7 @@ description: "Reference for the `capsule` CLI: bootstrap, login, serve, deploy, 
 
 The `capsule` CLI is installed with the `cpsl` package.
 
-In day-to-day use, most people end up using a small subset of commands over and over:
+In day-to-day use, most people end up living in a pretty small subset of commands:
 
 - `capsule login`
 - `capsule serve`
@@ -13,7 +13,29 @@ In day-to-day use, most people end up using a small subset of commands over and 
 - `capsule secret`
 - `capsule fs`
 
-The rest are there when you need to inspect or manage workspace resources directly.
+That is normal. Most work happens in the loop of logging in, serving locally, creating the resources the app depends on, and deploying.
+
+## Worked workflow
+
+This is a realistic day-to-day loop for a real app:
+
+```bash
+capsule login
+capsule secret create OPENAI_API_KEY=sk-...
+capsule fs create support-ops
+capsule channel create support-telegram --type telegram -c bot_token=123:ABC
+capsule serve app:app --channel support-telegram
+capsule deploy app:app
+```
+
+That one sequence covers the main platform primitives:
+
+- workspace authentication
+- app-owned secrets
+- mounted storage
+- external channel resources
+- local development
+- hosted deployment
 
 ## Top-level commands
 
@@ -34,7 +56,7 @@ Main command groups:
 
 ## `capsule bootstrap`
 
-Scaffold a new project from a template.
+Use `bootstrap` when you want a starting point instead of an empty file.
 
 ```bash
 capsule bootstrap my-app
@@ -49,7 +71,7 @@ Templates:
 
 ## `capsule login`
 
-Authenticate through the browser:
+Use `login` to connect your local machine to a Capsule workspace:
 
 ```bash
 capsule login
@@ -61,11 +83,11 @@ Useful options:
 - `--port`
 - `--http-port`
 
-Environment note: set `CAPSULE_GATEWAY_URL=localhost:1980` before login when targeting a local gateway.
+If you are targeting a local gateway, set `CAPSULE_GATEWAY_URL=localhost:1980` before `capsule login`.
 
 ## `capsule serve`
 
-Run an app with hot reload:
+`serve` is the local development loop. It uploads the project, boots the runtime, and hot-reloads as you edit:
 
 ```bash
 capsule serve app:app
@@ -82,7 +104,7 @@ For example, `capsule serve app:app` means "load the symbol `app` from `app.py`"
 
 ## `capsule deploy`
 
-Deploy the app:
+When the app looks good locally, `deploy` promotes that same definition to a hosted version:
 
 ```bash
 capsule deploy app:app
@@ -96,7 +118,7 @@ If `serve` is the local development loop, `deploy` is the same app definition pr
 
 Manage workspace apps.
 
-You may not need this group very often if you mostly work from code, but it is useful for inspecting what already exists in the workspace.
+If you mostly work from code, you may not use this group every day. It becomes handy when you need to inspect what already exists in the workspace.
 
 ### `capsule app create`
 
@@ -118,7 +140,7 @@ capsule app get <app-id>
 
 ## `capsule channel`
 
-Manage named external channel resources.
+Use `channel` to manage named external channel resources that apps can bind to.
 
 ### Common commands
 
@@ -139,7 +161,7 @@ Supported channel types:
 
 ## `capsule secret`
 
-Manage workspace secrets.
+Use `secret` for app-owned credentials such as model keys, OAuth client secrets, and internal service tokens.
 
 ### Common commands
 
@@ -151,7 +173,7 @@ capsule secret delete OPENAI_API_KEY
 
 ## `capsule fs`
 
-Manage filesystems.
+Use `fs` to manage named filesystems that apps can mount at runtime.
 
 ### Common commands
 
@@ -164,7 +186,7 @@ capsule fs upload reports ./report.csv /incoming/report.csv
 capsule fs download reports /incoming/report.csv ./report.csv
 ```
 
-## Typical workflow
+## A smaller workflow
 
 ```bash
 capsule login
@@ -174,6 +196,8 @@ capsule serve app:app
 capsule secret create OPENAI_API_KEY=sk-...
 capsule deploy app:app
 ```
+
+If you only remember one thing from this page, make it this: most of the CLI is just helping you move the same app definition from local iteration to a deployed product, while creating the workspace resources that app needs along the way.
 
 ## See also
 

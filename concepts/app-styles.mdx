@@ -3,12 +3,16 @@ title: "App Styles"
 description: "Choose between Capsule's functional and class-based authoring styles."
 ---
 
-Capsule supports two authoring styles:
+Capsule supports two authoring styles.
+
+They are not two different runtimes or two different product models. They are just two ways of organizing the same app. The real choice is mostly about code organization and whether instance state on `self` helps.
+
+Capsule supports:
 
 - **functional**: handlers are registered directly on `app`
 - **class-based**: handlers live on a class decorated with `@app.cls(...)`
 
-Both compile down to the same core runtime concepts. The important rule is that you do not mix them in one app.
+Both compile down to the same runtime concepts. The important rule is that you do not mix them in one app.
 
 ## Functional style
 
@@ -16,16 +20,27 @@ Functional apps declare the runtime at `App(...)` construction time:
 
 ```python
 import cpsl
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
 
 app = cpsl.App(
     name="hello",
-    image=cpsl.Image(),
+    image=cpsl.Image(python_packages=["openai"]),
+    secrets=["OPENAI_API_KEY"],
 )
 
 
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    await session.reply(f"Echo: {msg.text}")
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a concise Capsule assistant."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
 ```
 
 Use the functional style when:
@@ -40,15 +55,27 @@ Class-based apps put handlers on a runtime class:
 
 ```python
 import cpsl
+from openai import AsyncOpenAI
 
 app = cpsl.App(name="hello")
 
 
-@app.cls(image=cpsl.Image())
+@app.cls(image=cpsl.Image(python_packages=["openai"]), secrets=["OPENAI_API_KEY"])
 class HelloApp:
+    @cpsl.boot()
+    def setup(self):
+        self.client = AsyncOpenAI()
+
     @cpsl.message()
     async def handle(self, session: cpsl.Session, msg: cpsl.Message):
-        await session.reply(f"Echo: {msg.text}")
+        response = await self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a concise Capsule assistant."},
+                *session.chat_messages(msg),
+            ],
+        )
+        await session.reply(response.choices[0].message.content or "No response.")
 ```
 
 Use the class-based style when:

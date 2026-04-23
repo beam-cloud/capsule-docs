@@ -5,12 +5,40 @@ description: "Reference for the programmatic `cpsl.Client` used to talk to Capsu
 
 `cpsl.Client` is the lightweight Python client for talking to deployed Capsule apps from outside the app runtime.
 
+You will usually reach for it when the app already exists and you want to talk to it from somewhere else, such as a smoke test, admin script, or another Python service.
+
 It is useful for:
 
 - deploy smoke tests
 - scripts and admin tools
 - cron jobs
 - other Python services that want to call a Capsule app
+
+## Worked example
+
+The most common use is a deploy smoke test for a real app:
+
+```python
+import cpsl
+
+client = cpsl.Client()
+
+first = client.chat(
+    "support-ops",
+    "How many threads are waiting for review right now?",
+)
+second = client.chat(
+    "support-ops",
+    "Turn that into a two-step triage plan.",
+    session_id=first.session_id,
+)
+
+assert first.text.strip()
+assert second.text.strip()
+assert first.session_id == second.session_id
+```
+
+That pattern is useful because it exercises both the app's answer quality and its session continuity after a deploy.
 
 ## Setup
 
@@ -47,7 +75,7 @@ If you have already run `capsule login`, the zero-argument form is usually all y
 Send a message and wait for the full response.
 
 ```python
-reply = client.chat("hello-capsule", "ping")
+reply = client.chat("support-ops", "How many support threads are waiting for review right now?")
 print(reply.text)
 ```
 
@@ -65,7 +93,7 @@ Returns `ChatResponse` with:
 Stream a response via SSE:
 
 ```python
-for chunk in client.stream("hello-capsule", "write a summary"):
+for chunk in client.stream("support-ops", "Summarize the riskiest support threads."):
     print(chunk.text, end="")
 ```
 
@@ -83,13 +111,20 @@ Each `StreamChunk` exposes:
 Pass `session_id` if you want multiple client calls to continue the same conversation:
 
 ```python
-first = client.chat("hello-capsule", "remember apples")
-second = client.chat("hello-capsule", "what did I say?", session_id=first.session_id)
+first = client.chat(
+    "support-ops",
+    "How many threads are waiting for review, and which queue looks busiest?",
+)
+second = client.chat(
+    "support-ops",
+    "Turn that into a two-step triage plan.",
+    session_id=first.session_id,
+)
 ```
 
 Without `session_id`, each call starts a fresh conversation.
 
-## Typical uses
+## Typical use
 
 Example smoke test:
 
@@ -97,9 +132,10 @@ Example smoke test:
 import cpsl
 
 client = cpsl.Client()
-reply = client.chat("ops-bot", "ping")
+reply = client.chat("support-ops", "Give me a one-sentence triage plan for the current support queue.")
 
-assert "pong" in reply.text.lower()
+assert reply.text.strip()
+assert reply.session_id
 print("smoke test passed")
 ```
 

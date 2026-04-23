@@ -3,15 +3,20 @@ title: "App Model And Runtime"
 description: "Understand how one Capsule app definition becomes a running app for each app user."
 ---
 
-Capsule is built around a simple idea: you define the app once in Python, and Capsule uses that definition to run the product everywhere it needs to appear.
+When people ask what a Capsule app actually is, the shortest answer is: it is one Python definition that Capsule can run for real users.
 
-That same definition controls:
+That sounds simple, but it has a few consequences. The same `App` definition can describe the runtime, the chat handler, the queue page, the background jobs, the mounted storage, and the channels the app shows up in. `capsule serve` and `capsule deploy` both read from that same source of truth.
 
-- the managed runtime that executes your code
-- chat, pages, API surfaces, and external channels
-- tasks, schedules, and background work
-- collections, settings, integrations, secrets, and filesystems
-- product settings such as pricing, keep-warm behavior, and deploy metadata
+## How a real app is split
+
+Most non-trivial Capsule apps settle into four layers:
+
+- the app shell, which declares runtime, integrations, collections, settings, and pages
+- workflow surfaces, where users review queues, data, or task state
+- assistant logic, which routes requests and answers questions
+- background work, which keeps the product moving without blocking chat
+
+That split is useful because it tells you where new features should land. If a feature needs durable records, it probably belongs in a collection. If it needs operator review, it probably wants a page. If it needs async work or side effects, it probably wants a task or schedule.
 
 ## One app definition, many product surfaces
 
@@ -25,11 +30,13 @@ Unlike a split stack where chat, background jobs, file storage, and UI all live 
 - scheduled jobs
 - background tasks
 
-All of that is packaged off the same `App` definition. That is why Capsule feels closer to an application platform than to a standalone library.
+All of that is packaged off the same `App` definition. In practice, this means you can read one file and understand the shape of the product.
 
 ## Runtime per app user
 
-Capsule runs the app inside a managed runtime so you do not have to invent your own execution layer around each app user. The same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app.
+Capsule runs the app inside a managed runtime per app user. You do not have to invent your own execution layer for sessions, channel traffic, tasks, or page-backed interactions.
+
+That same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app. The main thing that changes is where the requests come from, not what kind of app you are writing.
 
 ## Runtime flow
 
@@ -45,7 +52,7 @@ flowchart LR
 
 ## What `capsule serve` and `capsule deploy` read
 
-When you run `capsule serve app:app` or `capsule deploy app:app`, Capsule resolves the app entry point and serializes the app configuration:
+When you run `capsule serve app:app` or `capsule deploy app:app`, Capsule resolves the app entry point and serializes the app configuration. That includes:
 
 - `image` and package installs
 - declared pages
@@ -56,11 +63,11 @@ When you run `capsule serve app:app` or `capsule deploy app:app`, Capsule resolv
 - schedule specs
 - filesystems and secrets
 
-That is why a single source file can fully describe both local iteration and production deploys.
+A single source file can describe both local iteration and production deploys. You are not maintaining a separate deployment manifest that slowly drifts away from the actual app.
 
 ## Handler types
 
-Capsule apps can contain several kinds of executable logic:
+Most apps end up with a small mix of handler types:
 
 - message handlers for chat or API conversations
 - lifecycle hooks like `boot`, `shutdown`, `enter`, and `exit`
@@ -68,7 +75,21 @@ Capsule apps can contain several kinds of executable logic:
 - schedules for cron-triggered jobs
 - endpoints and ASGI mounts for HTTP surfaces
 
-Each handler runs inside the Capsule runtime with the appropriate context injected, rather than in a completely separate app stack.
+Each one runs inside the same Capsule runtime with the right context injected. A schedule is not a different app. A page data handler is not a different service. They are just different entry points into the same product.
+
+## Where should a new feature live?
+
+This is the design question people hit most often.
+
+As a rule of thumb:
+
+- put conversational interpretation in `@app.message()`
+- put durable records in collections
+- put operator controls in settings and pages
+- put external side effects and long work in tasks
+- put recurring maintenance in schedules
+
+If you find yourself stuffing all of that into one long message handler, the app usually wants to be split across these surfaces instead. That is not a Capsule quirk. It is just what happens when the app starts doing real work.
 
 ## State layers
 
@@ -78,7 +99,7 @@ There are three main kinds of state in Capsule:
 - collections for durable document storage
 - settings for scoped configuration values that can be edited through the UI
 
-Use the lightest tool that fits the problem:
+Use the lightest one that fits the problem:
 
 - `session.data` for ephemeral conversation context
 - collections for real data models
@@ -91,11 +112,11 @@ Capsule has two page models:
 - the Python DSL, where a page returns `cpsl.ui.Page([...])`
 - React pages registered with `app.add_page(...)`
 
-Both can consume the same data handlers and collections. That lets the app keep one data model even when the UI becomes richer.
+Both can consume the same data handlers and collections. That is what lets an app start with a simple dashboard and later grow into a richer workflow page without having to rebuild the backend shape.
 
 ## Product and deploy knobs live in code
 
-Operational concerns are part of the app definition, not an afterthought:
+Operational concerns are part of the app definition, not an afterthought. The same code can describe things like:
 
 - `Image(...)` controls Python packages, apt packages, and setup commands
 - `price` and `pricing_type` describe how the app is sold
@@ -103,9 +124,12 @@ Operational concerns are part of the app definition, not an afterthought:
 - `filesystems` and `secrets` wire in external state
 - `channels` decide where the app can talk to users
 
+This is one of Capsule's main bets: the deploy story should stay close to the app code instead of turning into a second configuration project.
+
 ## Related pages
 
 - [Why Capsule](/concepts/why-capsule)
+- [Real App Anatomy](/concepts/real-app-anatomy)
 - [App Styles](/concepts/app-styles)
 - [Collections And Data](/concepts/collections-and-data)
 - [Tasks And Scheduling](/concepts/tasks-and-scheduling)

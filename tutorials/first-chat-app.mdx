@@ -1,238 +1,437 @@
 ---
 title: "First Chat App"
-description: "Build a real Capsule chat app with session state, history, notifications, and streaming replies."
+description: "Build a real Capsule chat app that routes operational requests, triggers tasks, and streams analysis."
 ---
 
-This tutorial takes the quickstart app and turns it into something you would actually keep building on.
+The quickstart showed the smallest useful Capsule assistant: one message handler and one page.
 
-The app is still small, but it now has a few important behaviors:
+This tutorial shows the next real step up.
 
-- it remembers things across turns
-- it can answer simple commands without calling a model
-- it can stream output instead of waiting for one big reply
+In a production-shaped app, chat is usually not just "send prompt, return answer." It is more like:
+
+1. read the current product state
+2. classify what the user is trying to do
+3. run deterministic product logic for operational requests
+4. stream a normal AI answer when the user is asking for analysis
+
+That is the routing pattern used in the reference LRE app. Here we will build the same shape with a self-contained OpenAI example.
 
 ## What you are building
 
-You will build a small app that can:
+You will build a small operations copilot that can:
 
-- remember notes in `session.data`
-- replay recent conversation history
-- stream a reply progressively
-- run boot logic when the runtime starts
+- inspect current ticket state from a collection
+- classify whether the user wants to start a sync, check status, or ask for analysis
+- submit a background task for the sync path
+- reply deterministically for status questions
+- stream an LLM answer for everything else
 
-## 1. Start with an app skeleton
+## 1. Install dependencies
+
+If you already followed the quickstart, you only need one extra dependency:
+
+```bash
+uv add openai
+```
+
+Or with `pip`:
+
+```bash
+pip install openai
+```
+
+Make sure the API key is available locally and in Capsule:
+
+```bash
+export OPENAI_API_KEY=sk-...
+capsule secret create OPENAI_API_KEY=sk-...
+```
+
+## 2. Start with the app shell
 
 Create `app.py`:
 
 ```python
-import asyncio
+import json
+
 import cpsl
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
 
 app = cpsl.App(
-    name="session-notebook",
-    image=cpsl.Image(),
+    name="ops-copilot",
+    image=cpsl.Image(python_packages=["openai"]),
+    secrets=["OPENAI_API_KEY"],
+)
+
+tickets = app.collection(
+    "tickets",
+    columns=["customer", "status", "summary", "priority"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
 )
 
 
 @app.boot()
 async def on_boot():
-    print("[session-notebook] booted")
+    print("[ops-copilot] runtime ready")
 ```
 
-The `boot` hook runs once when the runtime starts. That makes it the right place for things like model warmup, loading a local index, checking environment variables, or creating directories on disk.
+This app is still small, but it already has the basic product shape:
 
-## 2. Add a message handler
+- `tickets` is the durable operating state
+- chat will read from that state
+- a task will update that state
 
-Now add the chat loop:
+## 3. Add the deterministic work
+
+Real chat apps usually need a few things that should stay out of the model.
+
+Here we will add:
+
+- a task that represents a background sync
+- a summary helper that reports current ticket counts
+- a data-context helper that turns the collection into a compact prompt context
 
 ```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    text = (msg.text or "").strip()
-    notes = session.data.setdefault("notes", [])
+@app.task()
+async def sync_tickets(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing CRM and support feeds...")
 
-    if text.startswith("remember "):
-        note = text[len("remember "):].strip()
-        if not note:
-            await session.reply("Give me something to remember.")
-            return
+    # In a real app this would call the external systems, normalize the data,
+    # and update the collection. The tutorial keeps the task small.
+    await tickets.insert_one(
+        {
+            "customer": "Northwind Health",
+            "status": "open",
+            "summary": "Requested pricing review after onboarding call.",
+            "priority": "high",
+        }
+    )
 
-        notes.append(note)
-        await session.reply(f"Saved note #{len(notes)}: {note}")
-        return
 
-    if text == "notes":
-        if not notes:
-            await session.reply("No notes yet.")
-            return
-        await session.reply("\n".join(f"- {note}" for note in notes))
-        return
+async def build_status_summary() -> str:
+    rows = await tickets.find(limit=200)
+    if not rows:
+        return "There are no tickets yet."
 
-    if text == "history":
-        lines = [f"{m.sender}: {m.text}" for m in session.history[-10:]]
-        await session.reply("\n".join(lines) or "(empty)")
-        return
+    by_status: dict[str, int] = {}
+    for row in rows:
+        status = row.get("status", "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
 
-    await session.notify("Thinking…")
-    async with session.stream_reply() as reply:
-        reply.write(f"Session: {session.id[:8]}\n")
-        reply.write(f"User: {session.user.email or 'anonymous'}\n\n")
-        await asyncio.sleep(0.15)
-        reply.write("Try these commands:\n")
-        for example in ["remember buy coffee", "notes", "history"]:
-            await asyncio.sleep(0.15)
-            reply.write(f"- {example}\n")
+    lines = ["**Ticket Status**", ""]
+    for status, count in sorted(by_status.items()):
+        lines.append(f"- {status}: {count}")
+    lines.append("")
+    lines.append(f"**Total tickets:** {len(rows)}")
+    return "\n".join(lines)
+
+
+async def build_data_context() -> str:
+    rows = await tickets.find(limit=25, sort={"priority": 1})
+    if not rows:
+        return "No tickets yet."
+
+    return "\n".join(
+        json.dumps(
+            {
+                "customer": row.get("customer"),
+                "status": row.get("status"),
+                "priority": row.get("priority"),
+                "summary": row.get("summary"),
+            }
+        )
+        for row in rows
+    )
 ```
 
-There are a few things going on here, so it is worth calling them out:
+This split is important. The model should help with understanding and language. The product rules should still live in normal Python.
 
-- `session.data.setdefault("notes", [])` creates per-session state the first time the user talks to the app.
-- The `remember`, `notes`, and `history` branches are ordinary Python control flow. You do not need an LLM for every turn.
-- `session.notify("Thinking...")` is useful when the next response will take a second or two.
-- `session.stream_reply()` lets you write output gradually. That is often nicer than building one large string and replying at the end.
+## 4. Classify the user's request with a real model call
 
-## 3. Run the app locally
+Now add a small structured-routing helper.
+
+```python
+async def classify_intent(message: str, data_context: str) -> str:
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You route requests for an operations copilot. "
+                    "Return JSON with an `intent` field. "
+                    "Valid intents are `start_sync`, `check_status`, and `analysis`. "
+                    "Use `start_sync` when the user wants operational work kicked off. "
+                    "Use `check_status` when they want counts or current state. "
+                    "Use `analysis` for questions that need a natural-language answer."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{data_context}\n\nMessage:\n{message}",
+            },
+        ],
+    )
+
+    payload = json.loads(response.choices[0].message.content or "{}")
+    return payload.get("intent", "analysis")
+```
+
+This is the key difference between a toy chatbot and a useful assistant. We are using a model to decide what the user wants, but we are not asking the model to own the whole control flow.
+
+## 5. Route deterministic work, then stream analysis
+
+Now wire the message handler:
+
+```python
+SYSTEM_PROMPT = """\
+You are an operations copilot for a customer-success team.
+Use the ticket context to answer clearly and recommend concrete next actions.
+Be concise and practical.
+"""
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    data_context = await build_data_context()
+    text = (msg.text or "").strip()
+
+    intent = await classify_intent(text, data_context)
+
+    if intent == "start_sync":
+        handle = await sync_tickets.submit(session=session)
+        await session.show_task(handle, message="Ticket sync started")
+        return
+
+    if intent == "check_status":
+        await session.reply(await build_status_summary())
+        return
+
+    await session.notify("Thinking...")
+
+    stream = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": f"{SYSTEM_PROMPT}\n\nCurrent ticket context:\n{data_context}",
+            },
+            *session.chat_messages(msg),
+        ],
+        stream=True,
+    )
+
+    async with session.stream_reply() as reply:
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content or ""
+            if delta:
+                reply.write(delta)
+```
+
+If you remember one thing from this guide, make it this flow:
+
+- classify first
+- do deterministic work when the user is asking the product to act
+- stream the general AI answer for everything else
+
+That is the same control-flow shape used in stronger Capsule apps.
+
+## 6. Run the app locally
 
 ```bash
 capsule serve app:app
 ```
 
-In chat, try:
+Try prompts that hit each branch:
 
-- `remember buy coffee`
-- `remember send proposal`
-- `notes`
-- `history`
+- `Sync the latest ticket activity from our CRM.`
+- `How many open tickets do we have right now?`
+- `Which customers look the riskiest and what should the team do next?`
 
-You should see that:
+You should see three different behaviors:
 
-- `session.data` persists within the conversation
-- `session.history` contains recent messages
-- `session.notify()` emits lightweight status text
-- `session.stream_reply()` writes chunks incrementally and stores the final text in history
+- the sync request creates a task card
+- the status question returns a deterministic summary
+- the analysis question streams a model answer grounded in the current ticket context
 
-## 4. Understand the session model
+## 7. Why this pattern scales
 
-Every message handler receives two objects:
+This routing pattern keeps the app honest:
 
-- `cpsl.Session`, which is the live runtime context
-- `cpsl.Message`, which is the inbound user message
+- operational side effects live in tasks or ordinary Python
+- status checks stay deterministic and inspect real app state
+- the model helps with interpretation and explanation
 
-That sounds obvious, but it is the main design idea behind Capsule. Once you have those two objects, most app logic is just normal Python.
+That is how you avoid turning every request into one giant prompt that is hard to trust.
 
-The most useful `Session` fields early on are:
+In the LRE reference app, the same pattern is used with a richer classifier and more domain logic:
 
-- `session.id` for the conversation identifier
-- `session.user` for the authenticated user
-- `session.history` for prior messages
-- `session.data` for per-session persistent state
-- `session.integrations` for connected credentials
+- build a data context from collections
+- classify the request
+- submit operational work when needed
+- fall through to a streamed answer for broader analysis
 
-The `Message` object carries:
-
-- `msg.text` for the user text
-- `msg.attachments` when the user uploaded files
-- `msg.channel_type` so you can branch on transport if needed
-
-As a rule of thumb:
-
-- put temporary conversational state in `session.data`
-- put real durable records in collections
-- read `session.history` when you need context from earlier turns
-
-## 5. Add command routing
-
-A useful next cleanup is to move the branching logic into helpers so the handler stays readable:
-
-```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    text = (msg.text or "").strip()
-
-    if text == "help":
-        await show_help(session)
-    elif text.startswith("remember "):
-        await save_note(session, text[len("remember "):])
-    else:
-        await answer_freeform(session, msg)
-```
-
-For LLM-backed apps, `session.chat_messages(msg)` is often the easiest way to turn Capsule history into alternating `user` and `assistant` messages:
-
-```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    transcript = session.chat_messages(msg)
-    await session.reply(str(transcript))
-```
-
-You would usually pass that transcript into a model client rather than echoing it back, but the important point is that Capsule already does the role-merging for you.
-
-## 6. Know when to use `current_session()`
-
-Inside message handlers you already receive a live `session`, so pass it explicitly.
-
-`cpsl.current_session()` matters when:
-
-- a scheduled handler needs owner-scoped identity
-- a background task runs without a direct `session` argument
-- helper code needs to discover the active runtime context
-
-If you are writing normal request code and already have `session`, prefer using it directly. `current_session()` is most helpful in lower-level helpers and non-message contexts.
+The exact model layer can vary. Some teams use OpenAI directly, some use Anthropic, some use BAML for structured routing. The important part is the orchestration shape.
 
 ## Full example
 
 ```python
-import asyncio
+import json
+
 import cpsl
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
 
 app = cpsl.App(
-    name="session-notebook",
-    image=cpsl.Image(),
+    name="ops-copilot",
+    image=cpsl.Image(python_packages=["openai"]),
+    secrets=["OPENAI_API_KEY"],
 )
+
+tickets = app.collection(
+    "tickets",
+    columns=["customer", "status", "summary", "priority"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+)
+
+SYSTEM_PROMPT = """\
+You are an operations copilot for a customer-success team.
+Use the ticket context to answer clearly and recommend concrete next actions.
+Be concise and practical.
+"""
 
 
 @app.boot()
 async def on_boot():
-    print("[session-notebook] booted")
+    print("[ops-copilot] runtime ready")
+
+
+@app.task()
+async def sync_tickets(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing CRM and support feeds...")
+
+    await tickets.insert_one(
+        {
+            "customer": "Northwind Health",
+            "status": "open",
+            "summary": "Requested pricing review after onboarding call.",
+            "priority": "high",
+        }
+    )
+
+
+async def build_status_summary() -> str:
+    rows = await tickets.find(limit=200)
+    if not rows:
+        return "There are no tickets yet."
+
+    by_status: dict[str, int] = {}
+    for row in rows:
+        status = row.get("status", "unknown")
+        by_status[status] = by_status.get(status, 0) + 1
+
+    lines = ["**Ticket Status**", ""]
+    for status, count in sorted(by_status.items()):
+        lines.append(f"- {status}: {count}")
+    lines.append("")
+    lines.append(f"**Total tickets:** {len(rows)}")
+    return "\n".join(lines)
+
+
+async def build_data_context() -> str:
+    rows = await tickets.find(limit=25, sort={"priority": 1})
+    if not rows:
+        return "No tickets yet."
+
+    return "\n".join(
+        json.dumps(
+            {
+                "customer": row.get("customer"),
+                "status": row.get("status"),
+                "priority": row.get("priority"),
+                "summary": row.get("summary"),
+            }
+        )
+        for row in rows
+    )
+
+
+async def classify_intent(message: str, data_context: str) -> str:
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        response_format={"type": "json_object"},
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You route requests for an operations copilot. "
+                    "Return JSON with an `intent` field. "
+                    "Valid intents are `start_sync`, `check_status`, and `analysis`. "
+                    "Use `start_sync` when the user wants operational work kicked off. "
+                    "Use `check_status` when they want counts or current state. "
+                    "Use `analysis` for questions that need a natural-language answer."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Context:\n{data_context}\n\nMessage:\n{message}",
+            },
+        ],
+    )
+
+    payload = json.loads(response.choices[0].message.content or "{}")
+    return payload.get("intent", "analysis")
 
 
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
+    data_context = await build_data_context()
     text = (msg.text or "").strip()
-    notes = session.data.setdefault("notes", [])
 
-    if text.startswith("remember "):
-        note = text[len("remember "):].strip()
-        if not note:
-            await session.reply("Give me something to remember.")
-            return
-        notes.append(note)
-        await session.reply(f"Saved note #{len(notes)}: {note}")
+    intent = await classify_intent(text, data_context)
+
+    if intent == "start_sync":
+        handle = await sync_tickets.submit(session=session)
+        await session.show_task(handle, message="Ticket sync started")
         return
 
-    if text == "notes":
-        await session.reply("\n".join(f"- {note}" for note in notes) or "No notes yet.")
+    if intent == "check_status":
+        await session.reply(await build_status_summary())
         return
 
-    if text == "history":
-        lines = [f"{m.sender}: {m.text}" for m in session.history[-10:]]
-        await session.reply("\n".join(lines) or "(empty)")
-        return
+    await session.notify("Thinking...")
 
-    await session.notify("Thinking…")
+    stream = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": f"{SYSTEM_PROMPT}\n\nCurrent ticket context:\n{data_context}",
+            },
+            *session.chat_messages(msg),
+        ],
+        stream=True,
+    )
+
     async with session.stream_reply() as reply:
-        reply.write(f"Session: {session.id[:8]}\n")
-        reply.write(f"User: {session.user.email or 'anonymous'}\n\n")
-        await asyncio.sleep(0.15)
-        reply.write("Try these commands:\n")
-        for example in ["remember buy coffee", "notes", "history"]:
-            await asyncio.sleep(0.15)
-            reply.write(f"- {example}\n")
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content or ""
+            if delta:
+                reply.write(delta)
 ```
 
 ## Next steps
 
-- Move durable data into [Collections And Scopes](/tutorials/collections-and-scopes)
-- Add structured UI with [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
-- See [Session And Request Context Reference](/reference/session-and-request-context) for every session helper
+- Add workflow UI with [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
+- Move durable records into richer collections with [Collections And Scopes](/tutorials/collections-and-scopes)
+- See [Session And Request Context Reference](/reference/session-and-request-context) for the full runtime helper surface

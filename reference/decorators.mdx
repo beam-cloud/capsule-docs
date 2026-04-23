@@ -8,6 +8,45 @@ Capsule decorators fall into two families:
 - **functional app decorators** called on `app`
 - **class-based decorators** imported from `cpsl`
 
+## Worked flow
+
+In a real app, decorators usually work together rather than in isolation:
+
+```python
+@app.boot()
+async def on_boot():
+    print("[support-ops] runtime ready")
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    if "sync" in msg.text.lower():
+        handle = await sync_threads.submit(session=session)
+        await session.show_task(handle, message="Thread sync started")
+        return
+
+    await session.reply("Ask for a sync or ask for analysis.")
+
+
+@app.task(retries=2, lock="mailbox:sync")
+async def sync_threads(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing Gmail threads...")
+    ...
+
+
+@app.schedule("0 * * * *")
+async def hourly_sync():
+    await sync_threads.submit()
+```
+
+That one slice already shows the usual Capsule pattern:
+
+- lifecycle hooks prepare the runtime
+- message handlers decide what the user wants
+- tasks own side effects and longer work
+- schedules keep the app moving without user input
+
 ## Functional app decorators
 
 These require `app = cpsl.App(..., image=cpsl.Image(), ...)`.
@@ -85,12 +124,23 @@ async def on_exit(session: cpsl.Session):
 Registers the main inbound handler.
 
 ```python
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
+
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    await session.reply(msg.text)
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a concise Capsule assistant."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
 ```
 
-For most apps, this is the main entry point.
+For most apps, this is the main entry point. In a real app, remember to include `image=cpsl.Image(python_packages=["openai"])` and `secrets=["OPENAI_API_KEY"]` on `App(...)` if you want to call the OpenAI SDK directly.
 
 ## `task(...)`
 
@@ -111,15 +161,24 @@ Registers a background task and turns the function into a `TaskDescriptor`.
 
 ```python
 @app.task(retries=2, timeout=60)
-async def generate_report(session: cpsl.Session | None = None, report_id: str = ""):
-    ...
+async def sync_threads(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing Gmail threads...")
+    await threads.insert_one(
+        {
+            "subject": "Renewal review",
+            "status": "needs-review",
+            "priority": "high",
+            "thread_id": "thread_123",
+        }
+    )
 ```
 
 Submitting it looks like this:
 
 ```python
-handle = await generate_report.submit(session=session, report_id="daily")
-await session.show_task(handle, message="Generating report...")
+handle = await sync_threads.submit(session=session)
+await session.show_task(handle, message="Syncing mailbox...")
 ```
 
 After decoration, the task object supports:
@@ -147,7 +206,7 @@ A useful pattern is to keep the schedule thin and hand work off to a task:
 ```python
 @app.schedule("0 * * * *")
 async def hourly_sync():
-    await sync_index.submit()
+    await sync_threads.submit()
 ```
 
 ## `endpoint(method="GET", path="/", authorized=True)`

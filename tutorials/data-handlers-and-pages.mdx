@@ -1,309 +1,355 @@
 ---
 title: "Data Handlers And Pages"
-description: "Expose JSON with `@app.data`, build Python DSL pages, and bind UI widgets to settings."
+description: "Build workflow pages with `@app.data`, `RequestContext.integrations`, Python DSL pages, and React pages."
 ---
 
-Pages get much more useful once they stop being static. In Capsule, the usual pattern is:
+Pages get much more useful once they stop being static.
 
-1. declare `@app.data(...)` functions that return JSON
-2. render the results in `@app.page(...)` with `cpsl.ui`
-3. add settings so users can tune behavior without editing code
+In practice, most real Capsule apps end up following the same shape:
 
-That gives you a nice separation of concerns:
+1. declare `@app.data(...)` functions that return page-ready JSON
+2. use `RequestContext` when the page needs caller identity or integrations
+3. render simple status views with the Python DSL
+4. move richer workflows into React pages
+5. use settings for operator controls, not for the main data model
 
-- Python functions produce data
-- pages decide how to show it
-- settings let users control behavior without changing the code
+This is how you build things like inboxes, approval queues, review panels, and dashboards inside the same app as the assistant.
 
-## 1. Declare a few settings
+This guide uses a mailbox-style workflow as the example because it is a good model for pages that talk to real external systems.
 
-Settings are scoped key-value entries stored for the app, owner, or user.
+## What you are building
+
+You will build a small support-ops app with:
+
+- a Gmail integration
+- authenticated data handlers that read from Gmail and collections
+- an `Overview` page in the Python DSL
+- a `Mailbox` React page for the richer review workflow
+- owner-scoped settings that control the operator experience
+
+## 1. Declare the app shell
+
+Start with the app, one integration, one collection, and a couple of settings:
 
 ```python
 import cpsl
+import cpsl.ui as ui
 
-app = cpsl.App(name="dashboard-demo", image=cpsl.Image())
+app = cpsl.App(name="support-ops", image=cpsl.Image())
 
-app.setting("daily_goal", scope="user", type=int, default=3, label="Daily goal")
-app.setting("show_completed", scope="user", type=bool, default=True, label="Show completed")
-app.setting(
-    "default_view",
-    scope="user",
-    type=str,
-    default="table",
-    options=["table", "chart"],
-    label="Default view",
+app.add_integration(
+    "gmail",
+    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
 )
-app.setting("summary_prompt", scope="user", type=str, default="Short and useful")
+
+threads = app.collection(
+    "threads",
+    columns=["subject", "sender", "status", "priority", "thread_id"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+)
+
+app.setting("show_closed_threads", scope="owner", type=bool, default=False, label="Show closed")
+app.setting(
+    "default_tab",
+    scope="owner",
+    type=str,
+    default="all",
+    options=["all", "needs-review", "waiting", "closed"],
+    label="Default mailbox tab",
+)
 ```
 
-## 2. Add data handlers
+The collection holds your normalized operating state. The Gmail integration gives the runtime a way to read the user's mailbox when the page asks for it.
+
+## 2. Add integration-backed data handlers
 
 Data handlers register JSON endpoints at `GET /data/<name>`.
 
 ```python
-@app.data("stats", access="authenticated")
-def get_stats(ctx: cpsl.RequestContext):
+@app.data("mailbox_metrics", access="authenticated")
+async def mailbox_metrics():
+    rows = await threads.find(limit=500)
     return {
-        "viewer": ctx.user.email,
-        "open_tasks": 12,
-        "completed_today": 4,
-        "health": 0.97,
+        "total_threads": len(rows),
+        "needs_review": sum(1 for row in rows if row.get("status") == "needs-review"),
+        "waiting": sum(1 for row in rows if row.get("status") == "waiting"),
     }
 
 
-@app.data("activity", access="authenticated")
-def get_activity(period: str = "7d"):
-    return [
-        {"day": "Mon", "count": 3},
-        {"day": "Tue", "count": 5},
-        {"day": "Wed", "count": 4},
-        {"day": "Thu", "count": 7},
-        {"day": "Fri", "count": 2},
-    ]
+@app.data("threads", access="authenticated")
+async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"threads": [], "gmail_connected": False}
+
+    rows = await threads.find(
+        filter={"status": status} if status else {},
+        limit=100,
+        sort={"priority": 1},
+    )
+    return {"threads": rows, "gmail_connected": True}
 
 
-@app.data("recent_tasks", access="authenticated")
-def get_recent_tasks():
-    return [
-        {"title": "Import leads", "status": "done", "owner": "Ada"},
-        {"title": "Generate report", "status": "running", "owner": "Ibrahim"},
-        {"title": "Review findings", "status": "queued", "owner": "Mina"},
-    ]
+@app.data("thread", access="authenticated")
+async def get_thread(ctx: cpsl.RequestContext, thread_id: str):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"thread": None, "gmail_connected": False}
+
+    row = await threads.find_one({"thread_id": thread_id})
+    return {"thread": row, "gmail_connected": True}
 ```
 
-If you want to picture how these are exposed, `@app.data("activity")` becomes a JSON endpoint at `GET /data/activity`.
+There are two important ideas here:
 
-Function parameters are treated like query parameters, so a call like this:
-
-```text
-/data/activity?period=30d
-```
-
-would call:
-
-```python
-get_activity(period="30d")
-```
+- `RequestContext.integrations` is how the page gets the caller's connected credentials
+- the handler returns page-ready JSON, not raw SDK objects
 
 Important rules:
 
 - handlers must return JSON-serializable values
-- `access="public"` makes the endpoint visible without login
 - `access="authenticated"` requires an authenticated user
-- function parameters become query parameters, as in `period="7d"`
+- function parameters become query parameters
 - `RequestContext` is optional, but useful when you need the caller's identity or integrations
 
-## 3. Build a Python DSL page
+## 3. Build the overview page in the Python DSL
 
-Now render the data:
+Now add a compact operator dashboard:
 
 ```python
 @app.page("Overview", icon="layout-dashboard", access="authenticated")
 def overview():
-    return cpsl.ui.Page(
+    return ui.Page(
         [
-            cpsl.ui.Row(
+            ui.Row(
                 [
-                    cpsl.ui.Metric("Open Tasks", data="stats", field="open_tasks"),
-                    cpsl.ui.Metric("Completed Today", data="stats", field="completed_today"),
-                    cpsl.ui.Metric(
-                        "Health",
-                        data="stats",
-                        field="health",
-                        format="percent",
-                    ),
+                    ui.Metric("Threads", data="mailbox_metrics", field="total_threads"),
+                    ui.Metric("Needs Review", data="mailbox_metrics", field="needs_review"),
+                    ui.Metric("Waiting", data="mailbox_metrics", field="waiting"),
                 ]
             ),
-            cpsl.ui.Divider(),
-            cpsl.ui.Chart(
-                data="activity",
-                chart_type="bar",
-                x="day",
-                y="count",
-            ),
-            cpsl.ui.Divider(),
-            cpsl.ui.Table(
-                data="recent_tasks",
-                columns=["title", "status", "owner"],
-            ),
-        ]
-    )
-```
-
-The important thing to notice is that the page does not fetch anything itself. You bind widgets to named data sources and Capsule wires the page to those handlers for you.
-
-That is why DSL pages stay compact even when the UI starts getting more interesting.
-
-## 4. Add a settings page
-
-UI widgets like `Toggle`, `TextInput`, `NumberInput`, and `Select` bind directly to declared settings:
-
-```python
-@app.page("Preferences", icon="sliders-horizontal", access="authenticated")
-def preferences():
-    return cpsl.ui.Page(
-        [
-            cpsl.ui.Text("Preferences", style="heading"),
-            cpsl.ui.Text("These controls read and write user-scoped settings.", style="muted"),
-            cpsl.ui.Divider(),
-            cpsl.ui.Card(
-                "Display",
+            ui.Divider(),
+            ui.Card(
+                "Mailbox Settings",
                 [
-                    cpsl.ui.Toggle("Show completed items", setting="show_completed"),
-                    cpsl.ui.NumberInput("Daily goal", setting="daily_goal", min=1, max=20, step=1),
-                    cpsl.ui.Select("Default view", setting="default_view"),
-                ],
-            ),
-            cpsl.ui.Card(
-                "Prompting",
-                [
-                    cpsl.ui.TextInput(
-                        "Summary prompt",
-                        setting="summary_prompt",
-                        multiline=True,
-                        placeholder="How should the app summarize results?",
-                    ),
+                    ui.Toggle("Show closed threads", setting="show_closed_threads"),
+                    ui.Select("Default mailbox tab", setting="default_tab"),
                 ],
             ),
         ]
     )
 ```
 
-These widgets are especially handy for "operator settings" pages where you want the app to stay configurable but do not want to build a separate form system.
+This is a good use of the DSL:
 
-## 5. Read settings in Python
+- metrics
+- settings
+- simple tables or charts
+- task visibility
 
-Settings are not only for UI. You can read and write them inside handlers:
+The page stays declarative because the real work already lives in `@app.data(...)`.
+
+## 4. Add the richer workflow page in React
+
+Now register the mailbox page:
+
+```python
+app.add_page(
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
+    access="authenticated",
+)
+```
+
+Then build the React component:
+
+```tsx
+import { Button, EmptyState, Layout, useCapsule, useData } from "@capsule/page"
+
+export default function Mailbox() {
+  const { login } = useCapsule()
+  const threads = useData("threads", { params: { status: "needs-review" } })
+
+  if (threads.loading) {
+    return <EmptyState title="Loading mailbox..." />
+  }
+
+  if (threads.data?.gmail_connected === false) {
+    return (
+      <EmptyState
+        title="Connect Gmail to open the mailbox"
+        description="The page needs the caller's Gmail integration before it can load thread data."
+        action={<Button onClick={() => login()}>Connect Gmail</Button>}
+      />
+    )
+  }
+
+  return (
+    <Layout.Root>
+      <Layout.ListPane width={360}>
+        {threads.data?.threads?.map((thread) => (
+          <div key={thread.thread_id}>
+            <strong>{thread.subject}</strong>
+            <div>{thread.sender}</div>
+          </div>
+        ))}
+      </Layout.ListPane>
+      <Layout.Detail>
+        <div>Select a thread to show detail here.</div>
+      </Layout.Detail>
+    </Layout.Root>
+  )
+}
+```
+
+This is the same pattern used in richer Capsule apps:
+
+- `useData(...)` calls the named Capsule data handler
+- the page gets authenticated, user-scoped data automatically
+- `useCapsule().login()` gives you a clean way to prompt the user to connect the missing integration
+
+## 5. Decide when to use DSL pages versus React pages
+
+Use the Python DSL when the page is mostly:
+
+- metrics
+- tables
+- charts
+- settings
+- task boards
+
+Use React pages when the product needs:
+
+- split panes
+- complex list/detail flows
+- richer filtering or client-side interaction
+- third-party frontend packages
+- a workflow that feels more like an app surface than a dashboard card stack
+
+In practice, mailboxes, approval queues, and review consoles usually end up as React pages, while an overview dashboard is often cleaner in the DSL.
+
+## 6. Read settings in Python
+
+Settings are still useful in code. They let chat handlers, tasks, and pages share operator preferences:
 
 ```python
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    goal = await app.settings.get("daily_goal")
-    prompt = await app.settings.get("summary_prompt")
-    await session.reply(f"Daily goal: {goal}\nSummary prompt: {prompt}")
+    default_tab = await app.settings.get("default_tab")
+    show_closed = await app.settings.get("show_closed_threads")
+    await session.reply(
+        f"Mailbox default tab: {default_tab}\nShow closed threads: {show_closed}"
+    )
 ```
 
-That same accessor works anywhere inside the app runtime, so it is common to use settings to control prompts, filters, toggles, and page defaults.
+That same accessor works anywhere in the runtime, so it is common to use settings for prompts, filters, toggles, and page defaults.
 
-You can also write them yourself:
-
-```python
-await app.settings.set("daily_goal", 5)
-```
-
-For example, you might let a user update a setting from chat:
-
-```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    text = msg.text.strip()
-
-    if text.startswith("set goal "):
-        value = int(text.split()[-1])
-        await app.settings.set("daily_goal", value)
-        await session.reply(f"Daily goal updated to {value}")
-        return
-```
-
-## 6. Full example
+## 7. Full example
 
 ```python
 import cpsl
+import cpsl.ui as ui
 
-app = cpsl.App(name="dashboard-demo", image=cpsl.Image())
+app = cpsl.App(name="support-ops", image=cpsl.Image())
 
-app.setting("daily_goal", scope="user", type=int, default=3, label="Daily goal")
-app.setting("show_completed", scope="user", type=bool, default=True, label="Show completed")
-app.setting(
-    "default_view",
-    scope="user",
-    type=str,
-    default="table",
-    options=["table", "chart"],
-    label="Default view",
+app.add_integration(
+    "gmail",
+    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
 )
-app.setting("summary_prompt", scope="user", type=str, default="Short and useful")
+
+threads = app.collection(
+    "threads",
+    columns=["subject", "sender", "status", "priority", "thread_id"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+)
+
+app.setting("show_closed_threads", scope="owner", type=bool, default=False, label="Show closed")
+app.setting(
+    "default_tab",
+    scope="owner",
+    type=str,
+    default="all",
+    options=["all", "needs-review", "waiting", "closed"],
+    label="Default mailbox tab",
+)
 
 
-@app.data("stats", access="authenticated")
-def get_stats(ctx: cpsl.RequestContext):
+@app.data("mailbox_metrics", access="authenticated")
+async def mailbox_metrics():
+    rows = await threads.find(limit=500)
     return {
-        "viewer": ctx.user.email,
-        "open_tasks": 12,
-        "completed_today": 4,
-        "health": 0.97,
+        "total_threads": len(rows),
+        "needs_review": sum(1 for row in rows if row.get("status") == "needs-review"),
+        "waiting": sum(1 for row in rows if row.get("status") == "waiting"),
     }
 
 
-@app.data("activity", access="authenticated")
-def get_activity(period: str = "7d"):
-    return [
-        {"day": "Mon", "count": 3},
-        {"day": "Tue", "count": 5},
-        {"day": "Wed", "count": 4},
-        {"day": "Thu", "count": 7},
-        {"day": "Fri", "count": 2},
-    ]
+@app.data("threads", access="authenticated")
+async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"threads": [], "gmail_connected": False}
+
+    rows = await threads.find(
+        filter={"status": status} if status else {},
+        limit=100,
+        sort={"priority": 1},
+    )
+    return {"threads": rows, "gmail_connected": True}
 
 
-@app.data("recent_tasks", access="authenticated")
-def get_recent_tasks():
-    return [
-        {"title": "Import leads", "status": "done", "owner": "Ada"},
-        {"title": "Generate report", "status": "running", "owner": "Ibrahim"},
-        {"title": "Review findings", "status": "queued", "owner": "Mina"},
-    ]
+@app.data("thread", access="authenticated")
+async def get_thread(ctx: cpsl.RequestContext, thread_id: str):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"thread": None, "gmail_connected": False}
+
+    row = await threads.find_one({"thread_id": thread_id})
+    return {"thread": row, "gmail_connected": True}
 
 
 @app.page("Overview", icon="layout-dashboard", access="authenticated")
 def overview():
-    return cpsl.ui.Page(
+    return ui.Page(
         [
-            cpsl.ui.Row(
+            ui.Row(
                 [
-                    cpsl.ui.Metric("Open Tasks", data="stats", field="open_tasks"),
-                    cpsl.ui.Metric("Completed Today", data="stats", field="completed_today"),
-                    cpsl.ui.Metric("Health", data="stats", field="health", format="percent"),
+                    ui.Metric("Threads", data="mailbox_metrics", field="total_threads"),
+                    ui.Metric("Needs Review", data="mailbox_metrics", field="needs_review"),
+                    ui.Metric("Waiting", data="mailbox_metrics", field="waiting"),
                 ]
             ),
-            cpsl.ui.Divider(),
-            cpsl.ui.Chart(data="activity", chart_type="bar", x="day", y="count"),
-            cpsl.ui.Divider(),
-            cpsl.ui.Table(data="recent_tasks", columns=["title", "status", "owner"]),
-        ]
-    )
-
-
-@app.page("Preferences", icon="sliders-horizontal", access="authenticated")
-def preferences():
-    return cpsl.ui.Page(
-        [
-            cpsl.ui.Card(
-                "Display",
+            ui.Divider(),
+            ui.Card(
+                "Mailbox Settings",
                 [
-                    cpsl.ui.Toggle("Show completed items", setting="show_completed"),
-                    cpsl.ui.NumberInput("Daily goal", setting="daily_goal", min=1, max=20, step=1),
-                    cpsl.ui.Select("Default view", setting="default_view"),
-                ],
-            ),
-            cpsl.ui.Card(
-                "Prompting",
-                [
-                    cpsl.ui.TextInput(
-                        "Summary prompt",
-                        setting="summary_prompt",
-                        multiline=True,
-                        placeholder="How should the app summarize results?",
-                    ),
+                    ui.Toggle("Show closed threads", setting="show_closed_threads"),
+                    ui.Select("Default mailbox tab", setting="default_tab"),
                 ],
             ),
         ]
     )
+
+
+app.add_page(
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
+    access="authenticated",
+)
 ```
 
 ## Next steps
 
-- Move beyond the DSL with [React Pages And Theme](/tutorials/react-pages-and-theme)
-- Add persistent data with [Collections And Scopes](/tutorials/collections-and-scopes)
-- See [UI And Pages Reference](/reference/ui-and-pages) and [Collections And Settings Reference](/reference/collections-and-settings) for the full widget and settings surface
+- Move beyond the basic list/detail shell with [React Pages And Theme](/tutorials/react-pages-and-theme)
+- Add richer records and scopes with [Collections And Scopes](/tutorials/collections-and-scopes)
+- See [UI And Pages Reference](/reference/ui-and-pages) and [Channels, Integrations, And Secrets Reference](/reference/channels-integrations-and-secrets) for the full page and integration surface

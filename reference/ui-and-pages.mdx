@@ -5,7 +5,48 @@ description: "Reference for DSL page widgets, React page registration, and page-
 
 ## Page registration
 
-Capsule supports two ways to register pages.
+Capsule supports two page models, and most real apps use both.
+
+The usual split is simple. Use the Python DSL for dashboards, metrics, settings, tables, and task views. Use React when the page starts to feel like a richer application surface, such as a mailbox, approval queue, or list-detail workflow.
+
+## Worked example
+
+A strong Capsule app often uses both page models at once:
+
+```python
+@app.page("Overview", icon="layout-dashboard", access="authenticated")
+def overview():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Row(
+                [
+                    cpsl.ui.Metric("Threads", data="mailbox_metrics", field="total_threads"),
+                    cpsl.ui.Metric("Needs Review", data="mailbox_metrics", field="needs_review"),
+                ]
+            ),
+            cpsl.ui.Card(
+                "Mailbox Settings",
+                [
+                    cpsl.ui.Toggle("Show closed threads", setting="show_closed_threads"),
+                    cpsl.ui.Select("Default mailbox tab", setting="default_tab"),
+                ],
+            ),
+        ]
+    )
+
+
+app.add_page(
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
+    access="authenticated",
+)
+```
+
+That is the usual split:
+
+- use the DSL for dashboards, metrics, settings, and task views
+- use React for richer list/detail or workflow-heavy surfaces
 
 ### Python DSL pages
 
@@ -31,8 +72,19 @@ Example:
 def overview():
     return cpsl.ui.Page(
         [
-            cpsl.ui.Text("Overview", style="heading"),
-            cpsl.ui.Metric("Open tasks", value=12),
+            cpsl.ui.Row(
+                [
+                    cpsl.ui.Metric("Threads", data="mailbox_metrics", field="total_threads"),
+                    cpsl.ui.Metric("Needs Review", data="mailbox_metrics", field="needs_review"),
+                ]
+            ),
+            cpsl.ui.Card(
+                "Mailbox Settings",
+                [
+                    cpsl.ui.Toggle("Show closed threads", setting="show_closed_threads"),
+                    cpsl.ui.Select("Default mailbox tab", setting="default_tab"),
+                ],
+            ),
         ]
     )
 ```
@@ -64,10 +116,9 @@ Example:
 
 ```python
 app.add_page(
-    "Custom View",
-    icon="code",
-    component="pages/custom_view.tsx",
-    packages=["lucide-react@0.344.0"],
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
     access="authenticated",
 )
 ```
@@ -120,18 +171,12 @@ def dashboard():
         [
             cpsl.ui.Row(
                 [
-                    cpsl.ui.Metric("Open", value=12),
-                    cpsl.ui.Metric("Completed", value=4),
+                    cpsl.ui.Metric("Threads", data="mailbox_metrics", field="total_threads"),
+                    cpsl.ui.Metric("Needs Review", data="mailbox_metrics", field="needs_review"),
                 ]
             ),
             cpsl.ui.Divider(),
-            cpsl.ui.Table(
-                rows=[
-                    {"title": "Import leads", "status": "done"},
-                    {"title": "Generate report", "status": "running"},
-                ],
-                columns=["title", "status"],
-            ),
+            cpsl.ui.Toggle("Show closed threads", setting="show_closed_threads"),
         ]
     )
 ```
@@ -145,14 +190,14 @@ def dashboard():
 
 ## React page runtime
 
-The example apps use `@capsule/page` helpers such as:
+React pages are built with the `@capsule/page` runtime. The most common helpers are:
 
 - `useData(...)`
 - `useCollection(...)`
 - `useTheme()`
 - `useCapsule()`
 
-Common pattern:
+Common import pattern:
 
 ```tsx
 import { useCapsule, useCollection, useData, useTheme } from "@capsule/page"
@@ -161,17 +206,25 @@ import { useCapsule, useCollection, useData, useTheme } from "@capsule/page"
 Example:
 
 ```tsx
-import { useCollection, useData, useTheme } from "@capsule/page"
+import { Button, EmptyState, useCapsule, useData, useTheme } from "@capsule/page"
 
-export default function Dashboard() {
+export default function Mailbox() {
   const theme = useTheme()
-  const stats = useData("stats")
-  const contacts = useCollection("contacts", { pageSize: 10 })
+  const { login } = useCapsule()
+  const threads = useData("threads", { params: { status: "needs-review" } })
+
+  if (threads.data?.gmail_connected === false) {
+    return (
+      <EmptyState
+        title="Connect Gmail"
+        action={<Button onClick={() => login()}>Connect Gmail</Button>}
+      />
+    )
+  }
 
   return (
     <div style={{ color: theme.color.foreground }}>
-      <h2>Open tasks: {stats.data?.open_tasks ?? "-"}</h2>
-      <p>Rows: {contacts.total ?? 0}</p>
+      <h2>Threads: {threads.data?.threads?.length ?? 0}</h2>
     </div>
   )
 }

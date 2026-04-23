@@ -3,21 +3,95 @@ title: "App API"
 description: "Reference for `cpsl.App`, the Python app definition Capsule uses to serve and deploy your app."
 ---
 
-`cpsl.App` is the root object for a Capsule application. It is the Python interface to the Capsule platform: you declare surfaces, state, runtime requirements, filesystems, channels, and product settings here, and Capsule uses that definition for both local serve and hosted deploys.
+`cpsl.App` is the root object for a Capsule application.
 
-The `App` object does two jobs at once:
+The shortest useful way to think about it is this: `App` is both the place where you describe the product and the object Capsule reads when it serves or deploys that product. Pages, collections, integrations, and deploy knobs all live on the same object for that reason.
 
-- it is where you declare the surfaces and data model of the app
-- it is the thing Capsule serializes when you run `capsule serve` or `capsule deploy`
+## Worked example
 
-That is why pages, collections, integrations, and deployment knobs all sit on the same object.
+This is the kind of `App` definition a real product grows into:
+
+```python
+import cpsl
+import cpsl.ui as ui
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI()
+
+app = cpsl.App(
+    name="support-ops",
+    image=cpsl.Image(python_packages=["openai"]),
+    channels=[cpsl.Channel("support-telegram")],
+    keep_warm_seconds=30,
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("support-ops")},
+    price=1500,
+    pricing_type="monthly",
+)
+
+app.add_integration(
+    "gmail",
+    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+)
+
+threads = app.collection(
+    "threads",
+    columns=["subject", "status", "priority", "thread_id"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+)
+
+app.setting("auto_sync", scope="owner", type=bool, default=True)
+
+
+@app.data("mailbox_metrics", access="authenticated")
+async def mailbox_metrics():
+    rows = await threads.find(limit=500)
+    return {"total_threads": len(rows)}
+
+
+@app.page("Overview", icon="layout-dashboard")
+def overview():
+    return ui.Page([ui.Metric("Threads", data="mailbox_metrics", field="total_threads")])
+
+
+@app.task()
+async def sync_threads(session: cpsl.Session | None = None):
+    if session:
+        await session.notify("Syncing mailbox state...")
+    await threads.insert_one(
+        {
+            "subject": "Renewal review",
+            "status": "needs-review",
+            "priority": "high",
+            "thread_id": "thread_123",
+        }
+    )
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a support operations copilot."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
+```
+
+You do not need everything at once, but this example shows why `App` is the center of Capsule. Runtime, pages, state, integrations, tasks, channels, and pricing all hang off the same object.
 
 ## Constructor
 
 ```python
 app = cpsl.App(
     name="my-app",
-    image=cpsl.Image(),
+    image=cpsl.Image(python_packages=["openai"]),
     channels=[cpsl.Channel("my-telegram-bot")],
     keep_warm_seconds=30,
     secrets=["OPENAI_API_KEY"],
@@ -51,7 +125,7 @@ app = cpsl.App(
 
 ## App-building methods
 
-Most of the `App` API is declarative. You call these once while the module is imported, and Capsule remembers the resulting config.
+Most of the `App` API is declarative. You call these while the module is imported, and Capsule remembers the resulting configuration. The main question is usually not "how do I call this?" but "which part of the app should own this concern?"
 
 ### `app.collection(...)`
 
@@ -164,8 +238,15 @@ Here is a small functional app that uses several of them together:
 
 ```python
 import cpsl
+from openai import AsyncOpenAI
 
-app = cpsl.App(name="ops-bot", image=cpsl.Image())
+client = AsyncOpenAI()
+
+app = cpsl.App(
+    name="ops-bot",
+    image=cpsl.Image(python_packages=["openai"]),
+    secrets=["OPENAI_API_KEY"],
+)
 
 
 @app.boot()
@@ -175,7 +256,14 @@ async def on_boot():
 
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    await session.reply(msg.text)
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a concise operations copilot."},
+            *session.chat_messages(msg),
+        ],
+    )
+    await session.reply(response.choices[0].message.content or "No response.")
 
 
 @app.task()
@@ -188,14 +276,27 @@ async def sync_index():
 For class-based apps, use `@app.cls(...)` and the global decorators from `cpsl`:
 
 ```python
+from openai import AsyncOpenAI
+
 app = cpsl.App(name="my-app")
 
 
-@app.cls(image=cpsl.Image())
+@app.cls(image=cpsl.Image(python_packages=["openai"]), secrets=["OPENAI_API_KEY"])
 class MyApp:
+    @cpsl.boot()
+    def setup(self):
+        self.client = AsyncOpenAI()
+
     @cpsl.message()
     async def handle(self, session: cpsl.Session, msg: cpsl.Message):
-        ...
+        response = await self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a concise Capsule assistant."},
+                *session.chat_messages(msg),
+            ],
+        )
+        await session.reply(response.choices[0].message.content or "No response.")
 ```
 
 ### `@app.cls(...)` arguments

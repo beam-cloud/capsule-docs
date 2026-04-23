@@ -3,17 +3,9 @@ title: "Sessions And Channels"
 description: "Understand how Capsule keeps one session model across web chat, APIs, and external channels."
 ---
 
-Capsule gives you one conversation model across the ways people actually use an agentic app. The same app can answer in built-in web chat, through an API, or through named channel resources such as Slack, WhatsApp, and Telegram without rewriting the core handler logic.
+If a user talks to your app in the web UI today and Telegram tomorrow, you do not want two different state models. `Session` is the thing that keeps that experience coherent.
 
-`Session` is the runtime object that ties those surfaces together. It carries identity, history, reply helpers, connected integrations, and scoped data for the current app user.
-
-It carries:
-
-- the current user identity
-- message history
-- per-session state
-- connected integrations
-- reply and streaming helpers
+Capsule gives you one conversation model across web chat, API calls, and named channel resources such as Slack, WhatsApp, and Telegram. `Session` ties those surfaces together. It carries identity, history, reply helpers, connected integrations, and scoped data for the current app user.
 
 ## Why this matters
 
@@ -21,7 +13,7 @@ In many stacks, channel support is a separate integration problem and every new 
 
 ## Session lifecycle
 
-At a high level:
+At a high level, a request looks like this:
 
 1. a user opens chat, calls the API, or arrives through a bound external channel
 2. Capsule creates or resumes a `Session`
@@ -42,11 +34,29 @@ The most important fields are:
 - `session.integrations`
 - `session.db`
 
-Use `session.data` for lightweight conversation state. Use collections for durable application data.
+If you are reading that list and thinking "this feels like most of the runtime context," that is exactly right. `Session` is where conversational state, reply behavior, and user-scoped resources meet.
+
+## What should live in the session versus a collection?
+
+This is one of the first design decisions that matters in a real app.
+
+Use `session.data` for things that only matter inside the current conversation:
+
+- temporary conversational hints
+- progress through the current interaction
+- lightweight state that only matters for this session
+
+Use collections when the state needs to outlive the conversation:
+
+- records you need to query later
+- workflow state that pages should render
+- anything that should survive beyond one conversation
+
+That last rule is the useful one in practice. If a page, task, or schedule needs to read it later, it probably belongs in a collection instead of `session.data`.
 
 ## Reply patterns
 
-Capsule supports several reply modes:
+Once you have `session`, you can answer in a few different ways:
 
 - `reply()` for a complete response
 - `notify()` for lightweight status messages
@@ -54,7 +64,7 @@ Capsule supports several reply modes:
 - `stream_reply_from()` for piping async model streams
 - `show()` for structured blocks like task cards or integration prompts
 
-That gives you one session model that works for plain text, streaming AI responses, and richer UI blocks.
+This is one of the reasons Capsule chat feels product-shaped instead of prompt-shaped. The same handler can send plain text, stream model output, or surface richer UI like task cards and integration prompts.
 
 ## `current_session()`
 
@@ -76,7 +86,20 @@ Capsule separates transport from app logic.
 - named channel resources are referenced with `cpsl.Channel("name")`
 - `API()` gives you synchronous request/response access
 
-The key idea is that you should not have to fork the app just because users talk to it from different places. A channel changes how messages enter and leave the app, not how the core app is modeled.
+The important part is that a channel changes how messages enter and leave the app, not how the app itself is modeled.
+
+## When should channel-specific logic branch?
+
+Most of the time, it should not.
+
+The default pattern is simple:
+
+- keep the same collections, tasks, and assistant logic across all channels
+- branch only when the transport itself forces a different experience
+
+For example, you might use a shorter reply on Telegram, skip a large block on WhatsApp, or expose a synchronous path for API callers. Those are edge adaptations, not separate app architectures.
+
+If adding a new channel makes you feel like you need a second app, it is usually a sign that the product logic is too tightly coupled to one transport.
 
 Preferred channel pattern:
 
@@ -98,7 +121,7 @@ The older inline `Telegram(...)`, `Slack(...)`, and `WhatsApp(...)` channel obje
 - `email` when available
 - `owner_id` semantics for owner-scoped collections
 
-This is why the same handler can implement personal state, shared organization state, and anonymous/public experiences.
+That is what lets the same handler support personal state, shared organization state, and anonymous or public experiences without inventing separate identity plumbing each time.
 
 ## Related pages
 
