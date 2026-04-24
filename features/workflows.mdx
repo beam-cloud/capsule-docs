@@ -1,0 +1,90 @@
+---
+title: "Workflows"
+description: "Create named session-backed flows with optional launcher UI."
+---
+
+Workflows are named app surfaces for guided work.
+
+Use a workflow when a user should start a specific flow from the sidebar, optionally fill out a launcher form, then continue in a session-backed chat.
+
+## Create a workflow
+
+```python
+wf = app.workflow(
+    "Research Company",
+    icon="search",
+    description="Collect context and draft a brief.",
+    scope="user",
+)
+```
+
+Workflows appear in the hosted app sidebar.
+
+## Start without a custom UI
+
+If the workflow has no `@wf.ui()` launcher, Capsule opens a simple workflow chat composer.
+
+```python
+@wf.start()
+async def start(session: cpsl.Session, input: cpsl.WorkflowInput):
+    await session.reply("What company should I research?")
+
+
+@wf.message()
+async def continue_research(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"Researching {msg.text}...")
+```
+
+## Add a launcher UI
+
+```python
+@wf.ui()
+def research_form():
+    return cpsl.ui.WorkflowShell(
+        "Research Company",
+        children=[
+            cpsl.ui.FormSection(
+                "Input",
+                children=[
+                    cpsl.ui.TextInput("Company", name="company", required=True),
+                    cpsl.ui.TextInput("Notes", name="notes", multiline=True),
+                ],
+            ),
+            cpsl.ui.ActionBar(
+                children=[cpsl.ui.SubmitButton("Start research", primary=True)]
+            ),
+        ],
+    )
+```
+
+The submitted fields are delivered as `WorkflowInput`.
+
+```python
+@wf.start()
+async def start(session: cpsl.Session, input: cpsl.WorkflowInput):
+    await session.reply(f"Starting research for {input.company}.")
+```
+
+## Add actions
+
+```python
+@wf.action("approve")
+async def approve(session: cpsl.Session, input: cpsl.WorkflowInput):
+    await session.reply(f"Approved: {input.get('id')}")
+```
+
+Actions are structured follow-up handlers for workflow UI submits.
+
+## Scope
+
+Workflow `scope` controls how runs are grouped:
+
+- `user`: runs belong to the signed-in app user
+- `owner`: runs belong to the owner identity
+- `app`: runs are app-level
+
+## Related
+
+- [Workflow Reference](/reference/workflows)
+- [Pages](/features/pages)
+- [Chat And Sessions](/features/chat-and-sessions)

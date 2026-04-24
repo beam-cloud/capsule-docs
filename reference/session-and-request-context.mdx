@@ -78,6 +78,7 @@ On hosted apps, `session.user` comes from the app's sign-in flow. The same email
 | `await show(block)` | Render a structured block |
 | `await show_task(handle_or_id, message=None)` | Show a live task card |
 | `await show_integration(type, reason="")` | Show a non-blocking integration card |
+| `await show_browser(...)` | Show an embedded browser/live view block |
 | `await show_image(source, alt="", width=None)` | Render an image inline |
 | `await prompt_file(...)` | Block until the user uploads a file |
 | `await prompt_integration(...)` | Block until the user connects an integration |
@@ -143,6 +144,17 @@ await session.show_integration(
     reason="Connect GitHub to unlock repository analysis",
 )
 ```
+
+### `show_browser(...)`
+
+```python
+await session.show_browser(
+    url="https://example.com",
+    title="Browser session",
+)
+```
+
+Use this when a chat or workflow should surface a live browser view back to the user.
 
 ### `prompt_file(...)`
 
@@ -283,6 +295,6 @@ async def hourly_job():
 
 ## See also
 
-- [First Chat App](/tutorials/first-chat-app)
-- [Tasks And Schedules](/tutorials/tasks-and-schedules)
+- [First Chat App](/build/first-chat-app)
+- [Tasks And Schedules](/features/tasks-and-schedules)
 - [Channels, Integrations, And Secrets Reference](/reference/channels-integrations-and-secrets)

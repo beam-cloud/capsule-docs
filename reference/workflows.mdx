@@ -1,0 +1,121 @@
+---
+title: "Workflow API"
+description: "`app.workflow(...)`, `WorkflowInput`, and workflow handler decorators."
+---
+
+Workflows are named session-backed surfaces registered on `App`.
+
+## `app.workflow(...)`
+
+```python
+wf = app.workflow(
+    "Research Company",
+    scope="user",
+    icon="search",
+    description="Collect context and draft a brief.",
+)
+```
+
+Arguments:
+
+| Argument | Meaning |
+| --- | --- |
+| `name` | Sidebar label and workflow name |
+| `scope` | `"user"`, `"owner"`, or `"app"` |
+| `icon` | Sidebar icon name |
+| `description` | Short description shown in the workflow launcher |
+
+The returned `Workflow` object registers handlers.
+
+## `@workflow.ui()`
+
+Registers an optional launcher UI. The function must return `cpsl.ui.WorkflowShell`.
+
+```python
+@wf.ui()
+def ui():
+    return cpsl.ui.WorkflowShell(
+        "Research Company",
+        children=[
+            cpsl.ui.FormSection(
+                "Input",
+                children=[
+                    cpsl.ui.TextInput("Company", name="company", required=True)
+                ],
+            ),
+            cpsl.ui.ActionBar(
+                children=[cpsl.ui.SubmitButton("Start", primary=True)]
+            ),
+        ],
+    )
+```
+
+If no launcher UI is registered, the workflow opens a plain chat composer.
+
+## `@workflow.start()`
+
+Registers the handler called when a workflow run starts.
+
+```python
+@wf.start()
+async def start(session: cpsl.Session, input: cpsl.WorkflowInput):
+    await session.reply(f"Starting: {input.get('company')}")
+```
+
+## `@workflow.action(name)`
+
+Registers a named structured action.
+
+```python
+@wf.action("approve")
+async def approve(session: cpsl.Session, input: cpsl.WorkflowInput):
+    await session.reply(f"Approved {input['id']}")
+```
+
+## `@workflow.message()`
+
+Registers the freeform chat handler for an active workflow session.
+
+```python
+@wf.message()
+async def message(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"Continuing with: {msg.text}")
+```
+
+## `WorkflowInput`
+
+`WorkflowInput` wraps submitted launcher or action data.
+
+```python
+value = input["company"]
+same_value = input.company
+optional = input.get("notes", "")
+payload = input.to_dict()
+```
+
+It behaves like a dict and also supports attribute access.
+
+## Launcher widgets
+
+Workflow launcher UIs use the same `cpsl.ui` namespace.
+
+Common workflow widgets:
+
+| Widget | Purpose |
+| --- | --- |
+| `WorkflowShell(title, children=...)` | Root workflow launcher |
+| `FormSection(label, children=...)` | Labelled form section |
+| `TextInput(...)` | Text input |
+| `NumberInput(...)` | Number input |
+| `Select(...)` | Select input |
+| `FileInput(...)` | File upload input |
+| `ActionBar(...)` | Submit/action controls |
+| `SubmitButton(...)` | Submit to `@workflow.start()` or a named action |
+| `RunStatus(...)` | Current run state |
+| `RunList(...)` | List of workflow runs |
+
+## See also
+
+- [Workflows](/features/workflows)
+- [Chat And Sessions](/features/chat-and-sessions)
+- [UI And Pages Reference](/reference/ui-and-pages)

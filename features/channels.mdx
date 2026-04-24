@@ -1,0 +1,57 @@
+---
+title: "Channels"
+description: "Connect external message transports to a Capsule app."
+---
+
+Web chat is built into every Capsule app. Channels let the same app receive messages from external transports such as Telegram, Slack, or WhatsApp.
+
+## Create a channel
+
+```bash
+capsule channel create support-telegram --type telegram -c bot_token=123:ABC
+```
+
+## Declare it in the app
+
+```python
+app = cpsl.App(
+    name="support-ops",
+    image=cpsl.Image(),
+    channels=[cpsl.Channel("support-telegram")],
+)
+```
+
+## Handle messages once
+
+The same `@app.message()` handler can serve web chat and named channels.
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(
+        f"Received on {session.channel.type}: {msg.text}"
+    )
+```
+
+## Serve with a channel
+
+```bash
+capsule serve app:app --channel support-telegram
+```
+
+Use `--force-channel` when you need to rebind a local channel binding.
+
+## Manage channels
+
+```bash
+capsule channel list
+capsule channel info support-telegram
+capsule channel bind support-telegram --app support-ops
+capsule channel unbind support-telegram
+```
+
+## Related
+
+- [Chat And Sessions](/features/chat-and-sessions)
+- [Deploy An App](/build/deploy-an-app)
+- [CLI Reference](/reference/cli)

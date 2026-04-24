@@ -3,11 +3,9 @@ title: "Installation"
 description: "Install `cpsl`, verify the `capsule` CLI, and authenticate to your workspace."
 ---
 
-Installing Capsule is straightforward: install `cpsl`, make sure the `capsule` CLI is on your path, then log into your workspace.
+Install `cpsl`, verify the `capsule` CLI, then authenticate to your workspace.
 
-One small thing is worth calling out early. `capsule serve` and `capsule deploy` are not just local helper scripts. They talk to the Capsule platform, so logging in is part of normal local setup, not something you wait to do later.
-
-The `cpsl` package gives you both pieces you need:
+The package includes both pieces:
 
 - `cpsl`, the Python API you write your app with
 - `capsule`, the CLI you use for `login`, `serve`, `deploy`, secrets, channels, and filesystems
@@ -20,13 +18,11 @@ The `cpsl` package gives you both pieces you need:
 
 ## Install with uv
 
-If you use `uv`, add Capsule to your project:
-
 ```bash
 uv add cpsl
 ```
 
-Or install it into a virtual environment directly:
+Or install into a virtual environment directly:
 
 ```bash
 uv venv
@@ -45,10 +41,11 @@ pip install cpsl
 ## Verify the CLI
 
 ```bash
+which capsule
 capsule --help
 ```
 
-You should see the main command groups:
+You should see command groups such as:
 
 ```text
 bootstrap
@@ -63,15 +60,13 @@ serve
 
 ## Authenticate to your workspace
 
-Before you do anything with `serve` or `deploy`, log in:
-
 ```bash
 capsule login
 ```
 
-This opens a browser, authenticates against your workspace, and stores the token locally so the CLI can talk to Capsule.
+This opens a browser, authenticates against your workspace, and stores a local token for platform commands.
 
-This is the step people often skip on the first pass. If `capsule serve` feels like it should work without authentication, that is a fair guess. In practice, it is booting Capsule's dev loop around your app definition, so workspace auth is part of the normal path.
+`serve`, `deploy`, `secret`, `channel`, and `fs` all talk to Capsule, so login is part of normal local setup.
 
 If you are targeting a local gateway, set the gateway URL first:
 
@@ -82,7 +77,7 @@ capsule login
 
 ## Scaffold a project
 
-If you would rather start from a template than a blank `app.py`, use `bootstrap`:
+Use `bootstrap` when you want a template instead of a blank `app.py`:
 
 ```bash
 capsule bootstrap my-agent-app
@@ -98,8 +93,8 @@ The `minimal` template is good if you want to understand the smallest possible a
 
 ## Next steps
 
-- Follow the [Quickstart](/quickstart) to build and serve your first app.
-- Read [Why Capsule](/concepts/why-capsule) if you want the product story before you dive deeper.
-- Use [First Chat App](/tutorials/first-chat-app) if you want the first non-trivial example right away.
-- See [CLI Reference](/reference/cli) when you want the full command surface.
+- Follow the [Quickstart](/quickstart).
+- Build the [First Chat App](/build/first-chat-app).
+- Use [Troubleshooting](/troubleshooting) if setup fails.
+- See [CLI Reference](/reference/cli) for the full command surface.
 

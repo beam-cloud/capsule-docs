@@ -1,0 +1,79 @@
+---
+title: "Background Work"
+description: "Run long work and recurring jobs inside the Capsule app."
+---
+
+Do not block a chat turn on work that can run in the background. Capsule tasks and schedules keep that work inside the same app definition.
+
+Use tasks for work triggered by a user action. Use schedules for recurring work.
+
+## 1. Define a task
+
+```python
+@app.task(retries=2, timeout=300)
+async def sync_leads(owner_id: str):
+    # Talk to an API, update collections, write files, or run a model call.
+    return {"synced": 10, "owner_id": owner_id}
+```
+
+Tasks are normal Python functions registered with the app.
+
+## 2. Submit from chat
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    handle = await sync_leads.submit(owner_id=session.user.owner_id)
+    await session.show_task(handle, message="Lead sync started")
+```
+
+`show_task(...)` renders a task card in chat so the user can see that work is running.
+
+## 3. Show tasks on a page
+
+```python
+@app.page("Tasks", icon="list-check")
+def tasks_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.TaskBoard(title="Background work"),
+        ]
+    )
+```
+
+Use this for operator visibility instead of hiding long-running work in logs.
+
+## 4. Add a schedule
+
+```python
+@app.schedule("0 * * * *")
+async def hourly_sync():
+    await sync_leads.submit(owner_id="system")
+```
+
+Schedules use cron strings and run inside the same app runtime model.
+
+## 5. Add control
+
+Task options help make background work production-shaped:
+
+```python
+@app.task(
+    retries=3,
+    timeout=600,
+    lock="owner:{owner_id}",
+    process=True,
+)
+async def rebuild_index(owner_id: str):
+    ...
+```
+
+- `retries` handles transient failures.
+- `timeout` prevents runaway work.
+- `lock` avoids duplicate work for the same key.
+- `process=True` isolates CPU-heavy or crash-prone work.
+
+## Next steps
+
+- Deploy the app with [Deploy An App](/build/deploy-an-app).
+- See [Tasks And Schedules](/features/tasks-and-schedules).

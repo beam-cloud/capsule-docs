@@ -1,0 +1,83 @@
+---
+title: "First Chat App"
+description: "Build the smallest useful Capsule chat app."
+---
+
+Chat is the easiest Capsule surface to start with. A message handler receives a `Session` and a `Message`, then replies back to the same session.
+
+## 1. Create the app
+
+```python
+import cpsl
+
+app = cpsl.App(
+    name="first-chat",
+    image=cpsl.Image(),
+)
+```
+
+`App(...)` is the object `capsule serve` and `capsule deploy` read.
+
+## 2. Add a message handler
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"You said: {msg.text}")
+```
+
+Run it:
+
+```bash
+capsule serve app:app
+```
+
+Open the preview URL and send a message.
+
+## 3. Add conversation history
+
+Most model APIs want alternating user and assistant messages. Capsule keeps the session history and can merge the current message for you:
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    messages = session.chat_messages(msg)
+    await session.reply(f"This session has {len(messages)} model messages.")
+```
+
+## 4. Stream a reply
+
+Use streaming when work takes longer than a single response.
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    async with session.stream_reply() as reply:
+        reply.write("Starting...\n")
+        reply.write(f"Working on: {msg.text}\n")
+        reply.write("Done.")
+```
+
+## Full example
+
+```python
+import cpsl
+
+app = cpsl.App(name="first-chat", image=cpsl.Image())
+
+
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    text = (msg.text or "").strip()
+    if not text:
+        await session.reply("Send me a message.")
+        return
+
+    session.data["last_message"] = text
+    await session.reply(f"You said: {text}")
+```
+
+## Next steps
+
+- Add persistent records with [Add Data And State](/build/add-data-and-state).
+- See the feature page for [Chat And Sessions](/features/chat-and-sessions).

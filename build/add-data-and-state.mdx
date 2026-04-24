@@ -1,0 +1,83 @@
+---
+title: "Add Data And State"
+description: "Use session data for conversation state and collections for durable records."
+---
+
+Capsule gives you two common state layers before you add any external database:
+
+- `session.data` for lightweight per-session state
+- collections for durable queryable records
+
+Use the smallest layer that fits the job.
+
+## 1. Store session state
+
+`session.data` is useful for conversation-local memory.
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    count = int(session.data.get("count", 0)) + 1
+    session.data["count"] = count
+    await session.reply(f"This is message {count} in this session.")
+```
+
+Use it for preferences, last selections, short-lived workflow state, and other values that belong to one conversation.
+
+## 2. Declare a collection
+
+Collections hold durable records.
+
+```python
+leads = app.collection(
+    "leads",
+    columns=["company", "email", "status"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+)
+```
+
+`scope="owner"` keeps records scoped to the current owner identity. That is usually what you want for user-owned app data.
+
+## 3. Write records from chat
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await leads.insert_one(
+        {
+            "company": "Acme",
+            "email": "ops@acme.test",
+            "status": "new",
+        }
+    )
+    await session.reply("Saved one lead.")
+```
+
+## 4. Read records back
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    rows = await leads.find(limit=10)
+    await session.reply(f"You have {len(rows)} leads.")
+```
+
+## 5. Expose data to pages
+
+Pages use named data handlers when they need computed JSON.
+
+```python
+@app.data("lead_metrics", access="authenticated")
+async def lead_metrics():
+    rows = await leads.find(limit=500)
+    return {"total": len(rows)}
+```
+
+You can bind that data to a page in the next guide.
+
+## Next steps
+
+- Add a page with [Add Pages](/build/add-pages).
+- See [Collections](/features/collections) for collection options.

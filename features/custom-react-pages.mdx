@@ -1,0 +1,74 @@
+---
+title: "Custom React Pages"
+description: "Register richer frontend surfaces with `app.add_page(...)`."
+---
+
+Use React pages when the Python DSL is too small for the interface you need.
+
+Good fits include inboxes, approval queues, list/detail workflows, custom charts, maps, and pages that need external frontend packages.
+
+## Register a React page
+
+```python
+app.add_page(
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
+    packages=["lightweight-charts@4.2.0"],
+    access="authenticated",
+)
+```
+
+`component` points at a TSX file in your project.
+
+## Read app data
+
+React pages use the `@capsule/page` runtime.
+
+```tsx
+import { EmptyState, useCapsule, useData, useTheme } from "@capsule/page"
+
+export default function Mailbox() {
+  const theme = useTheme()
+  const { user } = useCapsule()
+  const threads = useData("threads", { params: { status: "needs-review" } })
+
+  if (threads.data?.gmail_connected === false) {
+    return (
+      <EmptyState
+        title="Gmail not connected"
+        description="Connect Gmail before loading the mailbox."
+      />
+    )
+  }
+
+  return (
+    <div style={{ color: theme.color.foreground }}>
+      <p>Signed in as {user?.email}</p>
+      <h2>Threads: {threads.data?.threads?.length ?? 0}</h2>
+    </div>
+  )
+}
+```
+
+## Provide data from Python
+
+```python
+@app.data("threads", access="authenticated")
+async def threads(ctx: cpsl.RequestContext, status: str = ""):
+    gmail = ctx.integrations.get("gmail")
+    if not gmail:
+        return {"gmail_connected": False, "threads": []}
+
+    return {"gmail_connected": True, "threads": await load_threads(status)}
+```
+
+## Use auth gates
+
+`access="authenticated"` gates the page before it loads. Inside the page, `useCapsule().user` is the signed-in app user.
+
+## Related
+
+- [Pages](/features/pages)
+- [Add Pages](/build/add-pages)
+- [UI And Pages Reference](/reference/ui-and-pages)

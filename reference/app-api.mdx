@@ -23,6 +23,8 @@ app = cpsl.App(
     image=cpsl.Image(python_packages=["openai"]),
     channels=[cpsl.Channel("support-telegram")],
     keep_warm_seconds=30,
+    cpu=0.5,
+    memory=1024,
     secrets=["OPENAI_API_KEY"],
     filesystems={"/data": cpsl.FileSystem("support-ops")},
     price=1500,
@@ -94,6 +96,8 @@ app = cpsl.App(
     image=cpsl.Image(python_packages=["openai"]),
     channels=[cpsl.Channel("my-telegram-bot")],
     keep_warm_seconds=30,
+    cpu=0.25,
+    memory=512,
     secrets=["OPENAI_API_KEY"],
     filesystems={"/data": cpsl.FileSystem("reports")},
     price=500,
@@ -118,6 +122,8 @@ app = cpsl.App(
 | `image` | Runtime image spec. Required for functional apps |
 | `channels` | External transport declarations. Web chat is implicit |
 | `keep_warm_seconds` | Keep the runtime warm after activity |
+| `cpu` | Number of vCPUs allocated to the sandbox |
+| `memory` | MiB of RAM allocated to the sandbox |
 | `secrets` | Workspace secret names to inject into the runtime |
 | `filesystems` | Mount-path to `FileSystem` mapping |
 | `price` | Price in cents |
@@ -207,6 +213,21 @@ def overview():
 ```
 
 Use this when the page is mostly a composition of metrics, tables, charts, and settings controls.
+
+### `app.workflow(...)`
+
+Register a named workflow surface.
+
+```python
+wf = app.workflow(
+    "Research Company",
+    icon="search",
+    description="Collect context and draft a brief.",
+    scope="user",
+)
+```
+
+Use workflows when users should start a named flow from the sidebar and continue inside a session-backed chat. See [Workflows](/reference/workflows) for launcher UI, start handlers, actions, and message handlers.
 
 ### `app.data(...)`
 
@@ -308,6 +329,8 @@ class MyApp:
 | `pricing_type` | `"one_time"` or `"monthly"` |
 | `channels` | External channels |
 | `keep_warm_seconds` | Warm runtime window |
+| `cpu` | Number of vCPUs allocated to the sandbox |
+| `memory` | MiB of RAM allocated to the sandbox |
 | `secrets` | Secret names to inject |
 | `filesystems` | Mount-path to `FileSystem` mapping |
 
@@ -330,4 +353,5 @@ await app.settings.set("daily_goal", goal + 1)
 
 - [Decorators Reference](/reference/decorators)
 - [Collections And Settings Reference](/reference/collections-and-settings)
+- [Workflows Reference](/reference/workflows)
 - [Image, Theme, And Deployment Reference](/reference/image-theme-and-deployment)

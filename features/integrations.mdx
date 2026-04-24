@@ -1,0 +1,71 @@
+---
+title: "Integrations"
+description: "Let app users connect external services like GitHub, Gmail, AWS, and Tailscale."
+---
+
+Use integrations when the credential belongs to the signed-in app user.
+
+Use [secrets](/features/secrets) when the credential belongs to the app operator or workspace.
+
+## OAuth integrations
+
+```python
+app.add_integration(
+    "github",
+    client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
+    client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
+    scopes=["repo", "read:user"],
+)
+```
+
+Store the OAuth client credentials as workspace secrets.
+
+## Secret-form integrations
+
+```python
+app.add_integration("aws")
+app.add_integration("tailscale")
+```
+
+Known secret-form integrations infer the fields the user needs to provide.
+
+## Prompt from chat
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    creds = await session.prompt_integration(
+        "github",
+        reason="Connect GitHub so I can inspect repositories.",
+    )
+    await session.reply(f"Connected GitHub with scopes: {creds.scopes}")
+```
+
+## Show a non-blocking card
+
+```python
+await session.show_integration(
+    "github",
+    reason="Connect GitHub to unlock repository analysis.",
+)
+```
+
+## Use integrations in pages
+
+```python
+@app.data("repos", access="authenticated")
+async def repos(ctx: cpsl.RequestContext):
+    github = ctx.integrations.get("github")
+    if not github:
+        return {"connected": False, "repos": []}
+
+    return {"connected": True, "repos": await load_repos(github.access_token)}
+```
+
+Pages can use this response to render the workflow or ask the user to connect the missing service.
+
+## Related
+
+- [Connect Services](/build/connect-services)
+- [Secrets](/features/secrets)
+- [Channels, Integrations, And Secrets Reference](/reference/channels-integrations-and-secrets)

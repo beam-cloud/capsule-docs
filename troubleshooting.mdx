@@ -1,0 +1,142 @@
+---
+title: "Troubleshooting"
+description: "Common setup, serve, deploy, auth, secret, and runtime issues."
+---
+
+Start here when a Capsule command or app does not behave the way you expect.
+
+## `capsule` command not found
+
+Install `cpsl` in the active environment:
+
+```bash
+uv add cpsl
+```
+
+or:
+
+```bash
+pip install cpsl
+```
+
+Then verify:
+
+```bash
+which capsule
+capsule --help
+```
+
+If `which capsule` points at the wrong environment, activate the virtual environment you installed into.
+
+## `capsule serve` says you are not authenticated
+
+Run:
+
+```bash
+capsule login
+```
+
+`capsule login` authenticates you as the builder. It is required for `serve`, `deploy`, and workspace resource commands.
+
+For a local gateway:
+
+```bash
+export CAPSULE_GATEWAY_URL=localhost:1980
+capsule login
+```
+
+## Secret missing in the runtime
+
+Create the workspace secret:
+
+```bash
+capsule secret create OPENAI_API_KEY=sk-...
+```
+
+Declare it on the app:
+
+```python
+app = cpsl.App(
+    name="my-app",
+    image=cpsl.Image(),
+    secrets=["OPENAI_API_KEY"],
+)
+```
+
+For local-only testing, also export the environment variable before `capsule serve`.
+
+## Import error after deploy
+
+Make sure the dependency is in the runtime image:
+
+```python
+app = cpsl.App(
+    name="my-app",
+    image=cpsl.Image(python_packages=["openai", "requests"]),
+)
+```
+
+Installing a package locally is not enough. The Capsule runtime installs packages from `cpsl.Image(...)`.
+
+## Page does not show in the sidebar
+
+Check that the page is registered before the module finishes importing:
+
+```python
+@app.page("Overview", icon="layout-dashboard")
+def overview():
+    return cpsl.ui.Page([...])
+```
+
+For React pages, check the component path:
+
+```python
+app.add_page("Dashboard", component="pages/dashboard.tsx")
+```
+
+## Data handler returns empty integration state
+
+If a page needs user credentials, gate it and read integrations from `RequestContext`.
+
+```python
+@app.data("repos", access="authenticated")
+async def repos(ctx: cpsl.RequestContext):
+    github = ctx.integrations.get("github")
+    if not github:
+        return {"connected": False, "repos": []}
+```
+
+The user still needs to connect the integration in the hosted app.
+
+## Filesystem path is missing
+
+Create the filesystem and mount it:
+
+```bash
+capsule fs create reports
+```
+
+```python
+app = cpsl.App(
+    name="reports",
+    image=cpsl.Image(),
+    filesystems={"/data": cpsl.FileSystem("reports")},
+)
+```
+
+Then create subdirectories inside the runtime before writing:
+
+```python
+os.makedirs("/data/reports", exist_ok=True)
+```
+
+## Local and hosted behavior differ
+
+Check [SDK And Runtime Versions](/sdk-runtime-versions). Hosted runtimes can use the platform-pinned SDK version even if your local virtual environment has a different `cpsl` installed.
+
+## Related
+
+- [Installation](/installation)
+- [Quickstart](/quickstart)
+- [Deploy An App](/build/deploy-an-app)
+- [CLI Reference](/reference/cli)

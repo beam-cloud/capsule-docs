@@ -1,0 +1,76 @@
+---
+title: "Chat And Sessions"
+description: "Handle messages, stream replies, keep session state, and render chat UI blocks."
+---
+
+Capsule chat is built around `@app.message()`.
+
+The handler receives:
+
+- `session`: the current conversation and user context
+- `msg`: the incoming user message
+
+## Basic reply
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"You said: {msg.text}")
+```
+
+## Model messages
+
+Use `session.chat_messages(msg)` to turn Capsule history plus the current message into model-ready messages.
+
+```python
+messages = session.chat_messages(msg)
+```
+
+## Streaming
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    async with session.stream_reply() as reply:
+        reply.write("Thinking...\n")
+        reply.write("Here is the answer.")
+```
+
+For model streams, use:
+
+```python
+full_text = await session.stream_reply_from(model_stream)
+```
+
+## Session state
+
+```python
+session.data["last_topic"] = msg.text
+```
+
+Use `session.data` for lightweight state that belongs to one conversation.
+
+## Rich chat blocks
+
+```python
+await session.show_task(handle, message="Report started")
+await session.show_integration("github", reason="Connect GitHub to inspect repositories")
+await session.show_image("/data/chart.png", alt="Chart")
+```
+
+Use these when the assistant needs to show progress, ask for resources, or render structured results.
+
+## Uploads and integrations
+
+```python
+upload = await session.prompt_file(message="Upload a CSV", accept=".csv,text/csv")
+github = await session.prompt_integration("github", reason="Need repo access")
+```
+
+Prompt methods block until the user completes the action or the prompt times out.
+
+## Related
+
+- [First Chat App](/build/first-chat-app)
+- [Session And Request Context Reference](/reference/session-and-request-context)
+- [Channels](/features/channels)

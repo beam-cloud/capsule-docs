@@ -1,0 +1,57 @@
+---
+title: "Themes"
+description: "Style hosted Capsule apps from Python."
+---
+
+Themes let an app control its hosted shell without leaving Python.
+
+Use them to set the app tagline, logo, accent color, fonts, or one of Capsule's presets.
+
+## Apply a preset
+
+```python
+app.theme(
+    preset="midnight",
+    tagline="Support operations, assisted.",
+)
+```
+
+## Customize colors and fonts
+
+```python
+app.theme(
+    accent="#2563EB",
+    font_sans="DM Sans, sans-serif",
+    font_mono="DM Mono, monospace",
+)
+```
+
+## Add a logo
+
+```python
+app.theme(
+    logo="/data/logo.svg",
+)
+```
+
+If the logo comes from a generated or uploaded file, mount a filesystem and keep the path stable.
+
+## Keep theme close to product definition
+
+Theme belongs near the rest of the app shell:
+
+```python
+app = cpsl.App(name="support-ops", image=cpsl.Image())
+
+app.theme(
+    preset="midnight",
+    accent="#2563EB",
+    tagline="Inbox triage for support teams.",
+)
+```
+
+## Related
+
+- [Add Pages](/build/add-pages)
+- [Image, Theme, And Deployment Reference](/reference/image-theme-and-deployment)
+- [App Styles](/concepts/app-styles)

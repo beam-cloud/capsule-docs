@@ -1,0 +1,68 @@
+---
+title: "Auth And Scopes"
+description: "How app users, access gates, and scoped data fit together in Capsule."
+---
+
+Every deployed Capsule app has its own app-scoped users.
+
+That means a user signing into one Capsule app is not entering a shared global user pool for every app. Auth, page access, runtime context, integrations, collections, and settings are all interpreted inside the current app.
+
+## Builder auth versus app user auth
+
+`capsule login` authenticates you as the builder so the CLI can serve, deploy, and manage workspace resources.
+
+The hosted app has a separate sign-in flow for its users. Those users show up in handlers as `session.user` or `ctx.user`.
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    await session.reply(f"Signed in as {session.user.email or 'anonymous'}")
+```
+
+## Page and data access
+
+Gate pages and data handlers when they need a signed-in app user.
+
+```python
+@app.page("Dashboard", icon="layout-dashboard", access="authenticated")
+def dashboard():
+    return cpsl.ui.Page([...])
+
+
+@app.data("metrics", access="authenticated")
+async def metrics(ctx: cpsl.RequestContext):
+    return {"user": ctx.user.email}
+```
+
+## Collection scopes
+
+Collection scope controls which identity owns records.
+
+```python
+leads = app.collection("leads", columns=["company", "status"], scope="owner")
+```
+
+Common scopes:
+
+- `app`: shared app-level records
+- `owner`: records owned by the current owner identity
+- `user`: records owned by the current signed-in app user
+
+## Integration scope
+
+Integrations belong to app users. If a page or chat handler needs GitHub, Gmail, AWS, or another user credential, read it from `session.integrations` or `ctx.integrations`.
+
+```python
+@app.data("repos", access="authenticated")
+async def repos(ctx: cpsl.RequestContext):
+    github = ctx.integrations.get("github")
+    if not github:
+        return {"connected": False, "repos": []}
+    return {"connected": True, "repos": await load_repos(github.access_token)}
+```
+
+## Related
+
+- [App Model And Runtime](/concepts/app-model-and-runtime)
+- [Collections](/features/collections)
+- [Integrations](/features/integrations)

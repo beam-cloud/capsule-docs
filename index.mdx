@@ -1,23 +1,48 @@
 ---
-title: "Introduction"
-description: "Capsule is a Python framework and runtime for building and deploying AI apps."
+title: "Build AI Apps In Python"
+description: "Capsule is a framework and hosted runtime for shipping AI apps with chat, pages, state, integrations, tasks, and auth."
 ---
 
-It lets you:
+Capsule turns one Python app definition into a hosted AI product.
 
-- Build chat apps with persistent sessions history
-- Deploy hosted UIs that users can sign into with batteries-included auth
-- Run background tasks and schedules without a separate worker stack
-- Add custom pages, dashboards, and workflow components
-- Let signed-in users connect integrations like Gmail, GitHub, Slack, or AWS
-- Store records in collections, mount filesystems, and use workspace secrets
-- Connect external channels like Telegram, Slack, and WhatsApp to your app
+You write the app. Capsule runs the runtime, chat surface, hosted UI, auth, state, background work, integrations, and deploy loop around it.
 
-You define the app in Python. Capsule handles the runtime, routing, hosted app shell, and deployment around it.
+<CardGroup cols={2}>
+  <Card title="Chat Apps" icon="message" href="/features/chat-and-sessions">
+    Build assistants with persistent session history, streaming replies, uploads, integration prompts, and user identity.
+  </Card>
+  <Card title="Pages And UI" icon="layout-dashboard" href="/features/pages">
+    Add dashboards, tables, settings, task boards, workflow screens, or custom React pages to the same app.
+  </Card>
+  <Card title="State And Data" icon="database" href="/features/collections">
+    Store queryable records in collections, keep lightweight session state, and expose data handlers to pages.
+  </Card>
+  <Card title="Runtime And Deploy" icon="rocket" href="/build/deploy-an-app">
+    Serve locally, inject secrets, mount filesystems, run tasks and schedules, then deploy the same app definition.
+  </Card>
+</CardGroup>
 
-When you deploy, you get a fully self contained product. Each deployed Capsule app has its own authenticated users and access rules, so one app's user pool stays separate from another's.
+## fast setup
 
-Here is a complete, minimal example of an LLM-backed Capsule app:
+Install the SDK and CLI:
+
+```bash
+uv add cpsl
+```
+
+or:
+
+```bash
+pip install cpsl
+```
+
+Authenticate once:
+
+```bash
+capsule login
+```
+
+Create `app.py`:
 
 ```python
 import cpsl
@@ -26,10 +51,20 @@ from openai import AsyncOpenAI
 client = AsyncOpenAI()
 
 app = cpsl.App(
-    name="example-chat",
+    name="hello-capsule",
     image=cpsl.Image(python_packages=["openai"]),
     secrets=["OPENAI_API_KEY"],
 )
+
+
+@app.page("Status", icon="layout-dashboard")
+def status_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Hello from Capsule", style="heading"),
+            cpsl.ui.Text("Chat and pages come from the same app definition.", style="muted"),
+        ]
+    )
 
 
 @app.message()
@@ -44,43 +79,54 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
     await session.reply(response.choices[0].message.content or "No response.")
 ```
 
-That's it. Save it as `app.py` and run:
+Run it:
 
 ```bash
 capsule serve app:app
 ```
 
-## How does it work?
+## prod setup
 
-Capsule takes your app definition, builds the runtime it needs, and runs it in Capsule's managed environment. The same app definition can expose chat, pages, tasks, data handlers, API routes, and channels.
+When the local app works, deploy the same entry point:
 
-`capsule serve` does this for local development. `capsule deploy` turns the same app into a hosted version. As the app grows, you keep adding to the same Python definition instead of moving into a separate worker system, page backend, or deployment config.
+```bash
+capsule deploy app:app
+```
 
-## Getting started
+The deployed app gets a hosted URL, app-scoped sign-in, and the same registered chat handler, pages, collections, tasks, integrations, channels, secrets, and filesystems declared in Python.
 
-Developing with Capsule is simple because you do not need to assemble the runtime and product scaffolding yourself. Start with:
+## learn by building
 
-1. Install `cpsl` and verify the CLI with [Installation](/installation)
-2. Run `capsule login` to authenticate to your workspace
-3. Follow the [Quickstart](/quickstart) to build and run your first app
+Start with the shortest path, then add one product surface at a time.
 
-Then deploy it and start inviting users into the hosted app.
+- [Quickstart](/quickstart) gets a working app on screen.
+- [First Chat App](/build/first-chat-app) teaches the message loop.
+- [Add Data And State](/build/add-data-and-state) introduces session data and collections.
+- [Add Pages](/build/add-pages) turns the app into a product surface.
+- [Connect Services](/build/connect-services) adds integrations, secrets, and filesystems.
+- [Background Work](/build/background-work) adds tasks and schedules.
+- [Deploy An App](/build/deploy-an-app) ships the app.
 
-Then move on to:
+## feature pages
 
-- [Real App Anatomy](/concepts/real-app-anatomy)
-- [First Chat App](/tutorials/first-chat-app)
-- [Data Handlers And Pages](/tutorials/data-handlers-and-pages)
-- [Serve, Deploy, And Iterate](/tutorials/serve-deploy-and-iterate)
+Use these when you know the feature you need.
 
-## Examples
+- [Chat And Sessions](/features/chat-and-sessions)
+- [Pages](/features/pages)
+- [Collections](/features/collections)
+- [Integrations](/features/integrations)
+- [Tasks And Schedules](/features/tasks-and-schedules)
+- [Channels](/features/channels)
+- [Workflows](/features/workflows)
+- [CLI Reference](/reference/cli)
 
-The repository includes a set of examples you can copy from as your app gets more ambitious:
+## examples
 
-- `telegram_channel` for a real OpenAI-backed assistant that works in web chat and Telegram
-- `platform_test` for collections, scopes, auth, and custom pages
-- `custom_pages` and `nootropics` for data handlers, DSL pages, React pages, and theme work
-- `test_suite` for tasks, schedules, TaskBoard, and integration prompts
-- `infra_analyst` for streaming replies, integrations, owner-scoped data, and richer app behavior
+The Capsule repository includes examples you can copy from:
 
-Browse the examples here: [beam-cloud/capsule](https://github.com/beam-cloud/capsule/tree/main/sdk/examples)
+- `minimal` for the smallest app shape
+- `chatbot` for an LLM-backed assistant
+- `dashboard` for chat plus a page
+- `test_suite` for tasks, schedules, task boards, and integration prompts
+
+Browse examples in [beam-cloud/capsule](https://github.com/beam-cloud/capsule/tree/main/sdk/examples).

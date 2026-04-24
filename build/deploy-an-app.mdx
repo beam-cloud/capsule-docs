@@ -1,0 +1,78 @@
+---
+title: "Deploy An App"
+description: "Serve locally, create workspace resources, and deploy the same Capsule app definition."
+---
+
+Capsule uses the same Python entry point for local development and hosted deploys.
+
+`capsule serve app:app` starts the local dev loop. `capsule deploy app:app` ships the app.
+
+## 1. Confirm the entry point
+
+```bash
+capsule serve app:app
+```
+
+`app:app` means:
+
+- module: `app.py`
+- symbol: `app`
+
+Serve uploads the project, boots the app runtime, and hot-reloads as you edit watched files.
+
+## 2. Create required resources
+
+Create any resources your app declares before deploy:
+
+```bash
+capsule secret create OPENAI_API_KEY=sk-...
+capsule fs create reports
+capsule channel create support-telegram --type telegram -c bot_token=123:ABC
+```
+
+Then reference them in code:
+
+```python
+app = cpsl.App(
+    name="support-ops",
+    image=cpsl.Image(python_packages=["openai"]),
+    channels=[cpsl.Channel("support-telegram")],
+    secrets=["OPENAI_API_KEY"],
+    filesystems={"/data": cpsl.FileSystem("reports")},
+)
+```
+
+## 3. Deploy
+
+```bash
+capsule deploy app:app
+```
+
+Deploy sends the app definition, runtime image, source archive, pages, integrations, schedules, secrets, filesystems, channels, and product settings to Capsule.
+
+The output includes the hosted URL.
+
+## 4. Know what changes in hosted mode
+
+The code stays the same, but requests now come from the hosted app:
+
+- users sign into this app's own user pool
+- `session.user` is the current app user
+- `access="authenticated"` pages are gated
+- workspace secrets are resolved in the managed runtime
+- declared channels can deliver messages to the app
+
+## 5. Iterate
+
+Make changes locally, serve again, then deploy the same entry point when ready.
+
+```bash
+capsule serve app:app
+capsule deploy app:app
+```
+
+## Next steps
+
+- Use [Troubleshooting](/troubleshooting) if serve or deploy fails.
+- See the [CLI Reference](/reference/cli) for every command.
+- Read [SDK And Runtime Versions](/sdk-runtime-versions) if local and hosted behavior diverge.

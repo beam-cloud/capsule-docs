@@ -1,0 +1,65 @@
+---
+title: "Tasks And Schedules"
+description: "Run async work and recurring jobs without a separate worker stack."
+---
+
+Tasks and schedules keep background work inside the Capsule app.
+
+Use tasks for work triggered by a user or page action. Use schedules for recurring work.
+
+## Define a task
+
+```python
+@app.task(retries=2, timeout=300)
+async def sync_threads(owner_id: str):
+    return {"synced": 25, "owner_id": owner_id}
+```
+
+## Submit a task
+
+```python
+@app.message()
+async def handle(session: cpsl.Session, msg: cpsl.Message):
+    handle = await sync_threads.submit(owner_id=session.user.owner_id)
+    await session.show_task(handle, message="Sync started")
+```
+
+## Add task options
+
+```python
+@app.task(
+    retries=3,
+    timeout=600,
+    lock="owner:{owner_id}",
+    process=True,
+)
+async def rebuild_index(owner_id: str):
+    ...
+```
+
+- `retries`: retry transient failures
+- `timeout`: stop runaway work
+- `lock`: prevent duplicate work for the same key
+- `process=True`: run in a separate process for isolation
+
+## Schedule recurring work
+
+```python
+@app.schedule("0 * * * *")
+async def hourly_sync():
+    await sync_threads.submit(owner_id="system")
+```
+
+## Show task state on a page
+
+```python
+@app.page("Tasks", icon="list-check")
+def tasks_page():
+    return cpsl.ui.Page([cpsl.ui.TaskBoard(title="Tasks")])
+```
+
+## Related
+
+- [Background Work](/build/background-work)
+- [Decorators Reference](/reference/decorators)
+- [Session And Request Context Reference](/reference/session-and-request-context)

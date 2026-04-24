@@ -1,0 +1,70 @@
+---
+title: "Collections"
+description: "Store durable records that handlers and pages can query."
+---
+
+Collections are Capsule's built-in durable record store.
+
+Use them for app data: leads, tickets, approvals, jobs, documents, threads, reports, and other records you need to query.
+
+## Declare a collection
+
+```python
+leads = app.collection(
+    "leads",
+    columns=["company", "email", "status"],
+    scope="owner",
+    sortable=True,
+    filterable=True,
+    paginate=20,
+)
+```
+
+## Choose a scope
+
+- `app`: records belong to the app
+- `owner`: records belong to the current owner identity
+- `user`: records belong to the signed-in app user
+
+Most user-owned app data should start with `owner`.
+
+## Insert records
+
+```python
+await leads.insert_one(
+    {
+        "company": "Acme",
+        "email": "ops@acme.test",
+        "status": "new",
+    }
+)
+```
+
+## Query records
+
+```python
+rows = await leads.find(
+    filter={"status": "new"},
+    limit=50,
+)
+```
+
+## Show records on a page
+
+```python
+@app.page("Leads", icon="table")
+def leads_page():
+    return cpsl.ui.Page([cpsl.ui.Table(leads)])
+```
+
+Passing the collection to `Table(...)` lets Capsule inherit schema and table metadata.
+
+## Collections versus filesystems
+
+Use collections for queryable records. Use [filesystems](/features/filesystems) for durable files, generated artifacts, uploads, and large intermediate outputs.
+
+## Related
+
+- [Add Data And State](/build/add-data-and-state)
+- [Collections And Settings Reference](/reference/collections-and-settings)
+- [Pages](/features/pages)

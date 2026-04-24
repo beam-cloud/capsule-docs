@@ -42,37 +42,49 @@
         "groups": [
           {
             "group": "Start Here",
-            "pages": ["index", "installation", "quickstart"]
+            "pages": ["index", "installation", "quickstart", "troubleshooting"]
           },
           {
-            "group": "Why Capsule",
+            "group": "Build Apps",
             "pages": [
-              "concepts/why-capsule",
-              "concepts/real-app-anatomy",
-              "concepts/app-model-and-runtime"
+              "build/first-chat-app",
+              "build/add-data-and-state",
+              "build/add-pages",
+              "build/connect-services",
+              "build/background-work",
+              "build/deploy-an-app"
             ]
           },
           {
-            "group": "Core Capabilities",
+            "group": "Features",
             "pages": [
-              "concepts/sessions-and-channels",
-              "concepts/collections-and-data",
-              "concepts/pages-and-ui",
-              "concepts/tasks-and-scheduling",
-              "concepts/integrations-secrets-and-filesystems",
+              "features/chat-and-sessions",
+              "features/pages",
+              "features/collections",
+              "features/integrations",
+              "features/secrets",
+              "features/filesystems",
+              "features/tasks-and-schedules",
+              "features/channels",
+              "features/workflows",
+              "features/custom-react-pages",
+              "features/themes"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/why-capsule",
+              "concepts/app-model-and-runtime",
+              "concepts/auth-and-scopes",
               "concepts/app-styles"
             ]
           },
           {
-            "group": "Build Guides",
+            "group": "Updates",
             "pages": [
-              "tutorials/first-chat-app",
-              "tutorials/collections-and-scopes",
-              "tutorials/data-handlers-and-pages",
-              "tutorials/react-pages-and-theme",
-              "tutorials/tasks-and-schedules",
-              "tutorials/integrations-secrets-and-filesystems",
-              "tutorials/serve-deploy-and-iterate"
+              "changelog",
+              "sdk-runtime-versions"
             ]
           }
         ]
@@ -88,6 +100,7 @@
               "reference/session-and-request-context",
               "reference/collections-and-settings",
               "reference/ui-and-pages",
+              "reference/workflows",
               "reference/channels-integrations-and-secrets",
               "reference/client",
               "reference/image-theme-and-deployment"

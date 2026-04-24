@@ -1,37 +1,47 @@
 ---
 title: "Quickstart"
-description: "Build, run, and deploy a small Capsule app."
+description: "Build, serve, and deploy a small Capsule app."
 ---
 
-This is the fastest path from a Python file to a live Capsule app.
+This is the shortest path from an empty project to a live Capsule app.
 
-The goal here is to build the smallest useful app, not to force every Capsule feature into one file. A good quickstart should leave you with something you understand and can keep extending.
+You will build one app with chat and a small page, run it locally, then deploy the same entry point.
 
-Real apps usually grow from this starting point into a familiar shape:
+## 1. Install Capsule
 
-- chat handler for natural-language entry
-- collections for durable operating state
-- pages for review and workflow
-- integrations for real external systems
-- tasks for long-running work
+Install `cpsl`. The package includes the Python API and the `capsule` CLI.
 
-By the end you will have:
+```bash
+uv add cpsl
+```
 
-- a local app with chat and a page
-- a real LLM-backed assistant
-- one small piece of session state
-- a hosted app users can sign into
-- a clear sense of where channels, tasks, filesystems, and pricing fit next
+or:
 
-## 1. Add the model dependency and API key
+```bash
+pip install cpsl
+```
 
-Install the OpenAI client in your project:
+Verify the CLI:
+
+```bash
+capsule --help
+```
+
+## 2. Authenticate
+
+```bash
+capsule login
+```
+
+This authenticates your local machine as a builder. Your deployed app will still get its own app-scoped user sign-in flow.
+
+## 3. Add the model dependency
 
 ```bash
 uv add openai
 ```
 
-Or with `pip`:
+or:
 
 ```bash
 pip install openai
@@ -43,13 +53,13 @@ Make the key available locally:
 export OPENAI_API_KEY=sk-...
 ```
 
-Before you deploy, create the matching workspace secret too:
+Create the matching workspace secret for deploys:
 
 ```bash
 capsule secret create OPENAI_API_KEY=sk-...
 ```
 
-## 2. Create `app.py`
+## 4. Create `app.py`
 
 ```python
 import cpsl
@@ -99,135 +109,56 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
     await session.reply(text)
 ```
 
-This is the functional style, which is the easiest place to start. It is already more than a raw prompt wrapper: one app definition owns the runtime, the assistant, and the page surface.
+This file has three pieces:
 
 - `App(...)` defines the runtime and deploy config
-- `image=cpsl.Image(python_packages=["openai"])` installs the vendor SDK in the app runtime
-- `secrets=["OPENAI_API_KEY"]` tells Capsule to inject the key into the app
-- `@app.page(...)` registers a structured UI page alongside chat
+- `@app.page(...)` adds a sidebar page
 - `@app.message()` registers the chat handler
-- `session.chat_messages(msg)` turns Capsule history into alternating `user` and `assistant` messages for the model
-- `session.data["last_response"]` stores lightweight per-session state
 
-If you are wondering why `image=` is required here: in functional apps, `App(...)` needs to know the runtime environment up front. In class-based apps, that same information lives on `@app.cls(...)` instead.
+The same app definition owns all three.
 
-## 3. Authenticate once
-
-If you have not used Capsule on this machine before:
-
-```bash
-capsule login
-```
-
-This connects your local machine to the Capsule workspace so `serve`, `deploy`, and `secret` commands can talk to the platform.
-
-It is separate from the end-user sign-in flow your deployed app will use later. `capsule login` authenticates you as the builder; the hosted app gets its own user login flow.
-
-## 4. Start the live dev loop
+## 5. Serve locally
 
 ```bash
 capsule serve app:app
 ```
 
-`app:app` means:
+`app:app` means "load the symbol `app` from `app.py`."
 
-- module: `app.py`
-- symbol: `app`
+Open the preview URL from the command output. You should see:
 
-`capsule serve` uploads the project, boots the runtime, and hot-reloads when you edit watched files such as Python, TSX, CSS, JSON, and Markdown.
+- chat, powered by `@app.message()`
+- a `Status` page, powered by `@app.page(...)`
 
-## 5. Use the app
-
-Open the local preview from the `capsule serve` output. You should see:
-
-- chat, powered by the `@app.message()` handler
-- a `Status` page in the sidebar, powered by `@app.page(...)`
-
-Now ask it something that looks like a real product conversation:
+Try a product-shaped prompt:
 
 - `I want to build a Telegram concierge for travel agents. What should the app include?`
-- `How would you structure the channels, tasks, and pages?`
+- `How would you structure the state, pages, tasks, and integrations?`
 
-At this point you can already see the shape Capsule is pushing you toward:
+## 6. Deploy
 
-- a real model call is happening inside the app runtime
-- Capsule is persisting chat history for the next turn
-- the same app definition also owns the page surface
-- you can mix in collections, tasks, filesystems, or pricing without moving to a different stack
-
-If you want to see how hosted app auth reaches your handler, make the system prompt aware of the user:
-
-```python
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    system_prompt = (
-        "You are a concise product assistant for Capsule users. "
-        f"The current user is {session.user.email or 'anonymous'}."
-    )
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "system", "content": system_prompt}, *session.chat_messages(msg)],
-    )
-    text = response.choices[0].message.content or "I could not generate a reply."
-    session.data["last_response"] = text
-    await session.reply(text)
-```
-
-On a hosted app, `session.user` is the signed-in user for that app. That is how the same app can personalize replies, gate pages, and store user-scoped data without adding a separate auth stack.
-
-## 6. Deploy it
-
-When the local version looks good:
+When the app works locally:
 
 ```bash
 capsule deploy app:app
 ```
 
-Deploy packages the same app definition you just served locally and sends it to Capsule. The deploy output includes the hosted URL for the app.
+Deploy packages the same app definition and returns a hosted URL. Users sign into that hosted app; the signed-in user is available inside handlers as `session.user`.
 
-In other words, you are not maintaining a separate deployment config somewhere else. The Python code is the source of truth.
+## 7. Add the next surface
 
-Once the deploy is live, that hosted URL is the front door to your product. Users can sign into the app there. Capsule keeps those users scoped to this app, so a different deployed Capsule app can have a different user pool.
+From here, add one capability at a time:
 
-## 7. Add the next product surface
+- Need durable records? Add [collections](/features/collections).
+- Need a review surface? Add [pages](/features/pages).
+- Need external services? Add [integrations](/features/integrations) and [secrets](/features/secrets).
+- Need long-running work? Add [tasks and schedules](/features/tasks-and-schedules).
+- Need Telegram, Slack, or WhatsApp? Add [channels](/features/channels).
 
-From here, most apps go in one of a few directions.
+## Next steps
 
-If the next problem is "this needs real state," add collections.
-
-If the next problem is "someone needs to review or control this," add a page.
-
-If the next problem is "this has to keep running after the reply," add a task or schedule.
-
-If the next problem is "the app needs to talk to another system," add an integration, secret, or filesystem.
-
-If the next problem is "users should be able to reach this somewhere else," add a channel.
-
-Capsule is designed so those next steps still feel like extensions of the same app, not a migration to a different stack.
-
-A common next step is to add channels or product settings directly on `App(...)`:
-
-```python
-app = cpsl.App(
-    name="hello-capsule",
-    image=cpsl.Image(python_packages=["openai"]),
-    channels=[cpsl.Channel("my-telegram-bot")],
-    secrets=["OPENAI_API_KEY"],
-    price=500,
-    pricing_type="monthly",
-)
-```
-
-That one change is a good example of how Capsule is meant to work. App behavior, delivery surfaces, and product settings all live in one definition instead of getting split across separate systems.
-
-If you want to see the full shape this usually grows into, read [Real App Anatomy](/concepts/real-app-anatomy) next. That page shows how small chat-first apps turn into real products with workflow pages, integration-backed data, and background jobs.
-
-## Where to go next
-
-- [Real App Anatomy](/concepts/real-app-anatomy) for the end-to-end product pattern
-- [Why Capsule](/concepts/why-capsule) for the full platform story
-- [First Chat App](/tutorials/first-chat-app) for the routing-or-streaming chat pattern
-- [Collections And Scopes](/tutorials/collections-and-scopes) for persisted data
-- [Data Handlers And Pages](/tutorials/data-handlers-and-pages) for dashboards, workflow pages, and integration-backed UI
-- [Tasks And Schedules](/tutorials/tasks-and-schedules) for the built-in task execution model
+- [First Chat App](/build/first-chat-app) for the message loop
+- [Add Data And State](/build/add-data-and-state) for session data and collections
+- [Add Pages](/build/add-pages) for app UI
+- [Deploy An App](/build/deploy-an-app) for serve/deploy details
 - [CLI Reference](/reference/cli) for the full command surface

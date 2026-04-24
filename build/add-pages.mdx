@@ -1,0 +1,78 @@
+---
+title: "Add Pages"
+description: "Add product UI to a Capsule app with Python DSL pages and React pages."
+---
+
+Capsule apps are not only chat handlers. Pages give users a place to review state, change settings, inspect tasks, and operate the app.
+
+There are two page models:
+
+- Python DSL pages for dashboards, settings, metrics, tables, and task boards
+- React pages for richer custom interfaces
+
+## 1. Add a Python page
+
+```python
+@app.page("Overview", icon="layout-dashboard", access="authenticated")
+def overview():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Overview", style="heading"),
+            cpsl.ui.Metric("Leads", data="lead_metrics", field="total"),
+        ]
+    )
+```
+
+The page appears in the hosted app sidebar. `access="authenticated"` means Capsule gates it behind app sign-in.
+
+## 2. Add settings
+
+Settings are app configuration, not records.
+
+```python
+app.setting("auto_sync", scope="owner", type=bool, default=True)
+
+
+@app.page("Settings", icon="sliders")
+def settings():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Card(
+                "Automation",
+                [cpsl.ui.Toggle("Auto sync", setting="auto_sync")],
+            )
+        ]
+    )
+```
+
+## 3. Add a table
+
+```python
+@app.page("Leads", icon="table")
+def leads_page():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Table(leads),
+        ]
+    )
+```
+
+Passing a collection to `Table(...)` lets Capsule use the collection metadata.
+
+## 4. Use React when the UI gets richer
+
+```python
+app.add_page(
+    "Mailbox",
+    icon="mail",
+    component="pages/mailbox.tsx",
+    access="authenticated",
+)
+```
+
+Use React for list/detail flows, custom interaction, external frontend libraries, or pages that feel like a small app.
+
+## Next steps
+
+- Connect external services with [Connect Services](/build/connect-services).
+- See [Pages](/features/pages) and [Custom React Pages](/features/custom-react-pages).

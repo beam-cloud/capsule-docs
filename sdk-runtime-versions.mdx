@@ -1,0 +1,62 @@
+---
+title: "SDK And Runtime Versions"
+description: "Understand local `cpsl` versions, hosted runtime versions, and deploy behavior."
+---
+
+Capsule apps are written with the local `cpsl` package, then run inside Capsule's managed runtime.
+
+Most of the time you do not need to think about versioning. If local and hosted behavior diverge, check the points below.
+
+## Local SDK
+
+Your local environment controls what you import while editing and running CLI commands.
+
+```bash
+python -c "import cpsl; print(cpsl.__version__)"
+```
+
+Upgrade locally with your package manager:
+
+```bash
+uv add --upgrade cpsl
+```
+
+or:
+
+```bash
+pip install --upgrade cpsl
+```
+
+## Runtime SDK
+
+Hosted Capsule runtimes use the SDK version pinned by the Capsule platform.
+
+That means a local-only SDK upgrade may not immediately change hosted runtime behavior. If you are testing a newly released SDK feature, confirm that the hosted runtime has the matching version available.
+
+## Image dependencies
+
+App dependencies belong in `cpsl.Image(...)`.
+
+```python
+app = cpsl.App(
+    name="my-app",
+    image=cpsl.Image(python_packages=["openai", "requests"]),
+)
+```
+
+Installing a dependency into your local virtual environment is not enough for the managed runtime.
+
+## When to check versions
+
+Check SDK/runtime versions when:
+
+- code works locally but fails after deploy
+- a new SDK method imports locally but is unavailable in hosted runtime
+- generated UI metadata looks different between `serve` and `deploy`
+- a dependency import fails in the managed runtime
+
+## Related
+
+- [Troubleshooting](/troubleshooting)
+- [Deploy An App](/build/deploy-an-app)
+- [Image, Theme, And Deployment Reference](/reference/image-theme-and-deployment)

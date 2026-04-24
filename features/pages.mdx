@@ -1,0 +1,72 @@
+---
+title: "Pages"
+description: "Add dashboards and app UI with Capsule's Python page DSL."
+---
+
+Pages make a Capsule app feel like a product instead of only a chat box.
+
+Use Python DSL pages for dashboards, settings, metrics, tables, charts, and task visibility.
+
+## Create a page
+
+```python
+@app.page("Overview", icon="layout-dashboard", access="authenticated")
+def overview():
+    return cpsl.ui.Page(
+        [
+            cpsl.ui.Text("Overview", style="heading"),
+            cpsl.ui.Metric("Open items", value=12),
+        ]
+    )
+```
+
+The page appears in the app sidebar.
+
+## Use data handlers
+
+```python
+@app.data("metrics", access="authenticated")
+async def metrics():
+    rows = await leads.find(limit=500)
+    return {"total": len(rows)}
+
+
+@app.page("Overview", icon="chart-bar")
+def overview():
+    return cpsl.ui.Page(
+        [cpsl.ui.Metric("Leads", data="metrics", field="total")]
+    )
+```
+
+Data handlers return JSON that pages can bind to.
+
+## Add settings controls
+
+```python
+app.setting("auto_sync", scope="owner", type=bool, default=True)
+
+
+@app.page("Settings", icon="sliders")
+def settings():
+    return cpsl.ui.Page(
+        [cpsl.ui.Toggle("Auto sync", setting="auto_sync")]
+    )
+```
+
+## Show records
+
+```python
+@app.page("Leads", icon="table")
+def leads_page():
+    return cpsl.ui.Page([cpsl.ui.Table(leads)])
+```
+
+## When to use React
+
+Use [Custom React Pages](/features/custom-react-pages) when the page needs custom interaction, a complex list/detail workflow, external frontend packages, or layout that the DSL should not try to express.
+
+## Related
+
+- [Add Pages](/build/add-pages)
+- [UI And Pages Reference](/reference/ui-and-pages)
+- [Custom React Pages](/features/custom-react-pages)
