@@ -22,14 +22,14 @@ View your local preview at `http://localhost:3000`.
 
 ```text
 ├── docs.json              # Mintlify navigation and site config
-├── index.mdx              # Kernel-style docs landing page
+├── index.mdx              # Docs landing page
 ├── installation.mdx       # Python + CLI setup
 ├── quickstart.mdx         # Fastest path to a live app
 ├── troubleshooting.mdx    # Common setup/runtime fixes
 ├── changelog.mdx          # User-facing updates
 ├── sdk-runtime-versions.mdx
 ├── build/                 # Step-by-step app-building guides
-├── features/              # Kernel-style feature pages
+├── features/              # Feature pages
 ├── concepts/              # Deeper product and runtime models
 ├── reference/             # Python app API and CLI reference
 ├── style.css              # Mintlify style overrides

@@ -163,13 +163,13 @@ Do not mix plain keys and operator keys in one update document.
 
 ## `session.db`
 
-Inside a live session, `session.db` gives you a scoped database proxy:
+Inside a live session, `session.db` gives you scoped collection access:
 
 ```python
 await session.db.bookmarks.insert_one({"title": "Capsule"})
 ```
 
-This is especially convenient for `user`, `owner`, and `session` collections, where the live session already knows which scoped database it should be talking to.
+This is especially convenient for `user`, `owner`, and `session` collections, where the live session already knows which scope to use.
 
 Example:
 

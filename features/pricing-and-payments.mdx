@@ -3,8 +3,6 @@ title: "Pricing And Payments"
 description: "Charge your app users, understand checkout, payouts, Capsule's platform fee, and your workspace billing."
 ---
 
-This page is for Capsule developers.
-
 You can charge external users for access to the apps you build on Capsule. Capsule handles checkout and access, then takes a platform fee from app sales. Separately, your workspace pays Capsule for platform subscription and runtime usage.
 
 At the SDK level, selling an app is simple: set a price on the app, deploy it, and connect payouts so Capsule can send you your share.
@@ -35,20 +33,9 @@ Supported pricing types:
 
 If `price` is `0`, the app is treated as free.
 
-## Deploy pricing
+## Apply pricing changes
 
-When you run:
-
-```bash
-capsule deploy app:app
-```
-
-the CLI sends:
-
-| Python field | Wire/API field |
-| --- | --- |
-| `price` | `price_in_cents` |
-| `pricing_type` | `pricing_type` |
+Pricing is part of the app definition. The next time you deploy the app, Capsule applies the current `price` and `pricing_type` values.
 
 The deploy output also shows the configured price.
 
@@ -56,33 +43,9 @@ The deploy output also shows the configured price.
 
 When an external user opens your paid app without access, Capsule starts a checkout flow.
 
-```http
-POST /api/v1/checkout/:app_id
-```
-
-Request body:
-
-```json
-{
-  "return_url": "https://your-return-url.example"
-}
-```
-
-Response:
-
-```json
-{
-  "checkout_url": "https://checkout.stripe.com/..."
-}
-```
-
 The hosted app redirects the user to Stripe Checkout. After success, Capsule grants that user access to your app.
 
-The success route is:
-
-```http
-GET /api/v1/checkout/:app_id/success?session_id=...
-```
+If you need to create a checkout link from a script or backend service, use `cpsl.Client.create_checkout(...)`.
 
 ## Access after payment
 
@@ -103,20 +66,7 @@ App sales use Stripe Connect to pay you out.
 
 Set up payouts from the Capsule console under **Settings → Usage & Billing**.
 
-The Connect flow uses:
-
-```http
-POST /api/v1/billing/connect/onboard
-GET /api/v1/billing/connect/status
-POST /api/v1/billing/connect/dashboard
-```
-
-Once onboarding is complete, the workspace has:
-
-- a Stripe connected account id
-- `payouts_enabled = true`
-
-When payouts are enabled, new app checkout sessions attach your connected account and Capsule applies the platform fee during checkout.
+Once onboarding is complete, new app checkout sessions can route your share to your connected payout account and apply Capsule's platform fee during checkout.
 
 ## Platform fee
 
@@ -136,111 +86,37 @@ For a `$15.00` app sale:
 | Platform fee | `$1.50` |
 | Your amount | `$13.50` |
 
-Amounts are stored in cents as:
-
-- `amount_cents`
-- `platform_fee_cents`
-- `developer_amount_cents`
-
-`developer_amount_cents` is the stored field for your net amount after Capsule's platform fee.
-
-The current implementation records app sale currency as `usd`.
+The app detail page and payment views should show the gross payment, Capsule fee, and your net amount. App sales currently settle in USD.
 
 ## Payout states
 
-Payments have a `payout_status`.
+In the payments UI, payouts are shown in a few practical states:
 
 | Status | Meaning |
 | --- | --- |
-| `paid_out` | The payment was created with an enabled connected account or has been transferred |
-| `pending_connect` | The workspace has not completed payout onboarding |
-| `pending_transfer` | A transfer is being attempted |
-| `transfer_failed` | The transfer failed and stores `payout_error` |
-| `not_applicable` | The row is not an app-sale payout |
+| Paid out | The payment has been routed or transferred to your connected account |
+| Needs onboarding | You have not completed payout onboarding yet |
+| In progress | Capsule is attempting to settle the payout |
+| Failed | Capsule could not complete the payout transfer |
 
 If users buy your app before you finish Connect onboarding, those payments can remain pending until your workspace is ready for settlement.
 
 ## Settle pending payouts
 
-Pending payouts can be settled after Connect is enabled.
+Pending payouts can be settled after Connect is enabled. Use **Settings → Usage & Billing** to finish onboarding and settle eligible pending payouts.
 
-```http
-POST /api/v1/billing/connect/settle-pending
-```
-
-Response:
-
-```json
-{
-  "processed": 3,
-  "paid_out": 3,
-  "failed": 0
-}
-```
-
-Settlement transfers your net amount to the workspace's connected account and marks payment rows as paid out or failed.
+Settlement transfers your net amount to your connected account and updates each payout as paid out or failed.
 
 ## App payment reporting
 
-You can inspect payments for an app:
+You can inspect app payments from the app detail page. The payments view is intended to answer:
 
-```http
-GET /api/v1/apps/:id/payments
-```
-
-Response shape:
-
-```json
-[
-  {
-    "id": "...",
-    "app_id": "...",
-    "email": "user@example.com",
-    "amount_cents": 1500,
-    "currency": "usd",
-    "payment_type": "subscription",
-    "status": "succeeded",
-    "platform_fee_cents": 150,
-    "developer_amount_cents": 1350,
-    "payout_status": "paid_out",
-    "created_at": "..."
-  }
-]
-```
-
-There is also an app earnings endpoint:
-
-```http
-GET /api/v1/apps/:id/earnings
-```
-
-It returns aggregate sales, payment rows, payout state, and the current platform fee percent.
-
-## Payment records
-
-Each payment row can represent either:
-
-- an external app user paying for app access
-- your workspace paying Capsule for platform subscription or runtime usage
-
-Important fields:
-
-| Field | Meaning |
-| --- | --- |
-| `app_id` | Present for app-sale payments |
-| `workspace_id` | Present for platform billing payments |
-| `email` | App user or workspace billing email |
-| `amount_cents` | Gross payment amount |
-| `payment_type` | `one_time`, `subscription`, or `platform` |
-| `status` | Payment status, usually `succeeded` for recorded completed payments |
-| `platform_fee_cents` | Capsule fee for app sales |
-| `developer_amount_cents` | Your net amount after Capsule's platform fee |
-| `stripe_account_id` | Connected account used for payout |
-| `payout_status` | Payout state |
-| `stripe_transfer_id` | Transfer id when a separate transfer was created |
-| `payout_error` | Transfer failure detail |
-
-Stripe events are deduplicated before processing, and payment creation is idempotent at the repository layer.
+- who paid for the app
+- how much they paid
+- whether the payment was one-time or monthly
+- how much Capsule kept as the platform fee
+- how much you earned
+- whether the payout is complete, pending, or failed
 
 ## Platform billing
 
@@ -248,18 +124,14 @@ Platform billing is separate from app sales. App sales are your users paying you
 
 You can manage your Capsule subscription and runtime usage from **Settings → Usage & Billing**.
 
-Relevant endpoints:
+From there you can:
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /api/v1/billing/status` | Current workspace billing status |
-| `GET /api/v1/billing/rates` | Current runtime usage rates |
-| `GET /api/v1/billing/usage` | Workspace usage summary |
-| `POST /api/v1/billing/subscribe` | Start platform subscription checkout |
-| `GET /api/v1/billing/subscribe/success` | Platform subscription success callback |
-| `POST /api/v1/billing/sync` | Sync local billing state from Stripe |
-| `POST /api/v1/billing/cancel` | Cancel platform subscription |
-| `POST /api/v1/billing/portal` | Create a Stripe billing portal URL |
+- see workspace usage
+- start or manage your Capsule subscription
+- open the billing portal
+- cancel a subscription
+- sync billing state
+- manage payout onboarding
 
 Workspace plan statuses:
 
@@ -275,13 +147,7 @@ Workspace plan statuses:
 
 Runtime usage is tracked separately from app sale revenue.
 
-`GET /api/v1/billing/usage` returns usage, cost, cycle, and Stripe setup information. You can scope it to one app:
-
-```http
-GET /api/v1/billing/usage?app_id=app_123
-```
-
-The UI uses this for workspace billing insights and per-app usage views.
+Use **Settings → Usage & Billing** for workspace billing insights. Use the app detail page for per-app usage views.
 
 ## UI map
 
@@ -293,13 +159,11 @@ Capsule exposes payment features in two main places:
 | App detail page | App price, checkout action, payments tab |
 | Settings → Usage & Billing | Platform subscription, runtime usage, Stripe Connect payouts |
 
-## Operational notes
+## Notes
 
-- Webhook handling verifies Stripe signatures when a webhook secret is configured. In debug mode without a webhook secret, signature verification can be skipped.
 - App sale checkout uses Stripe Checkout and can create one-time or subscription sessions depending on `pricing_type`.
-- When a connected account is available, Stripe Connect transfer data is attached at checkout time.
-- When no connected account is available, app sale payments are recorded as pending payout onboarding.
-- `price` is the Python SDK field. HTTP and protobuf surfaces use `price_in_cents`.
+- When payout onboarding is complete, Capsule can route your share to your connected payout account.
+- If onboarding is incomplete, app sale payouts can remain pending until payouts are enabled.
 
 ## Related
 

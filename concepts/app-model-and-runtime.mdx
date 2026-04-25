@@ -50,12 +50,12 @@ That distinction matters because `access="authenticated"` pages, data handlers, 
 
 ```mermaid
 flowchart LR
-    appUser[AppUser] --> surface[WebChatOrChannel]
-    surface --> gateway[CapsuleGateway]
-    gateway --> runtime[ManagedRuntimePerAppUser]
-    runtime --> logic[HandlersPagesTasks]
-    logic --> state[CollectionsSettingsSessionData]
-    logic --> resources[SecretsIntegrationsFilesystems]
+    appUser[App user] --> surface[Chat, page, or channel]
+    surface --> router[Capsule]
+    router --> runtime[Per-user app runtime]
+    runtime --> logic[Handlers, pages, and tasks]
+    logic --> state[Collections, settings, and session data]
+    logic --> resources[Secrets, integrations, and filesystems]
 ```
 
 ## What `capsule serve` and `capsule deploy` read
@@ -129,7 +129,7 @@ Operational concerns are part of the app definition, not an afterthought. The sa
 - `Image(...)` controls Python packages, apt packages, and setup commands
 - `price` and `pricing_type` describe how the app is sold
 - `keep_warm_seconds` affects runtime readiness
-- `filesystems` and `secrets` wire in external state
+- `filesystems` and `secrets` connect external state
 - `channels` decide where the app can talk to users
 
 This is one of Capsule's main bets: the deploy story should stay close to the app code instead of turning into a second configuration project.

@@ -69,7 +69,7 @@ The collection holds your normalized operating state. The Gmail integration give
 
 ## 2. Add integration-backed data handlers
 
-Data handlers register JSON endpoints at `GET /data/<name>`.
+Data handlers register named JSON sources that Capsule pages can call.
 
 ```python
 @app.data("mailbox_metrics", access="authenticated")

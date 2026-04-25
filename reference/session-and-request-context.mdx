@@ -49,7 +49,7 @@ In one handler, `Session` gives you:
 | `history` | Recent message history |
 | `data` | Per-session persistent key-value store |
 | `integrations` | Connected runtime credentials |
-| `db` | Scoped database proxy for collection access |
+| `db` | Scoped collection access for the current session |
 
 Small example:
 
@@ -141,7 +141,7 @@ await session.show_task(handle, message="Building report...")
 ```python
 await session.show_integration(
     "github",
-    reason="Connect GitHub to unlock repository analysis",
+    reason="Connect GitHub to unlock project analysis",
 )
 ```
 

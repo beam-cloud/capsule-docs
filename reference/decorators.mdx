@@ -214,12 +214,12 @@ async def hourly_sync():
 Registers a plain HTTP handler.
 
 ```python
-@app.endpoint(method="POST", path="/webhook", authorized=False)
-async def webhook(ctx: cpsl.RequestContext):
+@app.endpoint(method="POST", path="/callback", authorized=False)
+async def callback(ctx: cpsl.RequestContext):
     ...
 ```
 
-Use `authorized=False` for public webhooks.
+Use `authorized=False` for public callback handlers.
 
 In a real handler you would usually inspect `ctx.request` or just return structured data:
 
