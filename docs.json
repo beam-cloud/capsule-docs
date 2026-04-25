@@ -68,7 +68,8 @@
               "features/channels",
               "features/workflows",
               "features/custom-react-pages",
-              "features/themes"
+              "features/themes",
+              "features/pricing-and-payments"
             ]
           },
           {
@@ -112,27 +113,6 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "GitHub",
-          "href": "https://github.com/beam-cloud/capsule",
-          "icon": "github"
-        }
-      ]
-    }
-  },
-  "navbar": {
-    "primary": {
-      "type": "button",
-      "label": "Repository",
-      "href": "https://github.com/beam-cloud/capsule"
-    }
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/beam-cloud/capsule"
-    }
+    ]
   }
 }

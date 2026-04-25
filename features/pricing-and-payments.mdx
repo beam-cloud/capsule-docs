@@ -1,0 +1,307 @@
+---
+title: "Pricing And Payments"
+description: "Sell Capsule apps to users, understand checkout, payouts, platform billing, and payment records."
+---
+
+Capsule has two billing flows:
+
+- **App sales**: users pay for access to a developer's app.
+- **Platform billing**: developers pay Capsule for workspace subscription and runtime usage.
+
+Most app builders only need the first flow at the SDK level: set a price on the app, deploy it, and optionally connect payouts.
+
+## Sell an app
+
+Set `price` and `pricing_type` on `cpsl.App`.
+
+```python
+import cpsl
+
+app = cpsl.App(
+    name="support-ops",
+    image=cpsl.Image(python_packages=["openai"]),
+    price=1500,
+    pricing_type="monthly",
+)
+```
+
+`price` is in cents. `1500` means `$15.00`.
+
+Supported pricing types:
+
+| Value | Meaning |
+| --- | --- |
+| `"one_time"` | The user pays once for app access |
+| `"monthly"` | The user subscribes monthly for app access |
+
+If `price` is `0`, the app is treated as free.
+
+## Deploy pricing
+
+When you run:
+
+```bash
+capsule deploy app:app
+```
+
+the CLI sends:
+
+| Python field | Wire/API field |
+| --- | --- |
+| `price` | `price_in_cents` |
+| `pricing_type` | `pricing_type` |
+
+The deploy output also shows the configured price.
+
+## Buyer checkout
+
+When a paid app is opened by a user without access, Capsule starts a checkout flow.
+
+```http
+POST /api/v1/checkout/:app_id
+```
+
+Request body:
+
+```json
+{
+  "return_url": "https://your-return-url.example"
+}
+```
+
+Response:
+
+```json
+{
+  "checkout_url": "https://checkout.stripe.com/..."
+}
+```
+
+The hosted app redirects the user to Stripe Checkout. After success, Capsule grants the user access to the app.
+
+The success route is:
+
+```http
+GET /api/v1/checkout/:app_id/success?session_id=...
+```
+
+## Access after payment
+
+Paid apps still use normal app-scoped identity.
+
+After checkout:
+
+- the buyer signs into the app user pool
+- Capsule records access for that app
+- `session.user` and `ctx.user` identify the signed-in app user
+- `access="authenticated"` pages continue to use the same auth gate
+
+Pricing controls whether the user can enter the app. It does not replace app auth or page/data access checks.
+
+## Payouts
+
+App sales use Stripe Connect for developer payouts.
+
+Set up payouts from the Capsule console under **Settings → Usage & Billing**.
+
+The Connect flow uses:
+
+```http
+POST /api/v1/billing/connect/onboard
+GET /api/v1/billing/connect/status
+POST /api/v1/billing/connect/dashboard
+```
+
+Once onboarding is complete, the workspace has:
+
+- a Stripe connected account id
+- `payouts_enabled = true`
+
+When payouts are enabled, new app checkout sessions attach the connected account and Capsule applies the platform fee during checkout.
+
+## Platform fee
+
+Capsule takes a platform fee on app sales.
+
+Current platform fee:
+
+```text
+10%
+```
+
+For a `$15.00` app sale:
+
+| Amount | Value |
+| --- | --- |
+| Gross payment | `$15.00` |
+| Platform fee | `$1.50` |
+| Developer amount | `$13.50` |
+
+Amounts are stored in cents as:
+
+- `amount_cents`
+- `platform_fee_cents`
+- `developer_amount_cents`
+
+The current implementation records app sale currency as `usd`.
+
+## Payout states
+
+Payments have a `payout_status`.
+
+| Status | Meaning |
+| --- | --- |
+| `paid_out` | The payment was created with an enabled connected account or has been transferred |
+| `pending_connect` | The workspace has not completed payout onboarding |
+| `pending_transfer` | A transfer is being attempted |
+| `transfer_failed` | The transfer failed and stores `payout_error` |
+| `not_applicable` | The row is not an app-sale payout |
+
+If users buy an app before the developer finishes Connect onboarding, those payments can remain pending until the workspace is ready for settlement.
+
+## Settle pending payouts
+
+Pending payouts can be settled after Connect is enabled.
+
+```http
+POST /api/v1/billing/connect/settle-pending
+```
+
+Response:
+
+```json
+{
+  "processed": 3,
+  "paid_out": 3,
+  "failed": 0
+}
+```
+
+Settlement transfers the developer amount to the workspace's connected account and marks payment rows as paid out or failed.
+
+## App payment reporting
+
+App owners can inspect payments for an app:
+
+```http
+GET /api/v1/apps/:id/payments
+```
+
+Response shape:
+
+```json
+[
+  {
+    "id": "...",
+    "app_id": "...",
+    "email": "buyer@example.com",
+    "amount_cents": 1500,
+    "currency": "usd",
+    "payment_type": "subscription",
+    "status": "succeeded",
+    "platform_fee_cents": 150,
+    "developer_amount_cents": 1350,
+    "payout_status": "paid_out",
+    "created_at": "..."
+  }
+]
+```
+
+There is also an app earnings endpoint:
+
+```http
+GET /api/v1/apps/:id/earnings
+```
+
+It returns aggregate sales, payment rows, payout state, and the current platform fee percent.
+
+## Payment records
+
+Each payment row can represent either:
+
+- a buyer paying for app access
+- a developer paying Capsule for platform subscription or runtime usage
+
+Important fields:
+
+| Field | Meaning |
+| --- | --- |
+| `app_id` | Present for app-sale payments |
+| `workspace_id` | Present for platform billing payments |
+| `email` | Buyer or workspace billing email |
+| `amount_cents` | Gross payment amount |
+| `payment_type` | `one_time`, `subscription`, or `platform` |
+| `status` | Payment status, usually `succeeded` for recorded completed payments |
+| `platform_fee_cents` | Capsule fee for app sales |
+| `developer_amount_cents` | Net amount for the developer |
+| `stripe_account_id` | Connected account used for payout |
+| `payout_status` | Payout state |
+| `stripe_transfer_id` | Transfer id when a separate transfer was created |
+| `payout_error` | Transfer failure detail |
+
+Stripe events are deduplicated before processing, and payment creation is idempotent at the repository layer.
+
+## Platform billing
+
+Platform billing is separate from app sales.
+
+Developers can manage their Capsule subscription and runtime usage from **Settings → Usage & Billing**.
+
+Relevant endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/v1/billing/status` | Current workspace billing status |
+| `GET /api/v1/billing/rates` | Current runtime usage rates |
+| `GET /api/v1/billing/usage` | Workspace usage summary |
+| `POST /api/v1/billing/subscribe` | Start platform subscription checkout |
+| `GET /api/v1/billing/subscribe/success` | Platform subscription success callback |
+| `POST /api/v1/billing/sync` | Sync local billing state from Stripe |
+| `POST /api/v1/billing/cancel` | Cancel platform subscription |
+| `POST /api/v1/billing/portal` | Create a Stripe billing portal URL |
+
+Workspace plan statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `trial` | Trial workspace |
+| `active` | Active paid workspace |
+| `past_due` | Payment is overdue |
+| `cancelled` | Subscription was cancelled |
+| `expired` | Trial or plan is no longer active |
+
+## Runtime usage
+
+Runtime usage is tracked separately from app sale revenue.
+
+`GET /api/v1/billing/usage` returns usage, cost, cycle, and Stripe setup information. You can scope it to one app:
+
+```http
+GET /api/v1/billing/usage?app_id=app_123
+```
+
+The UI uses this for workspace billing insights and per-app usage views.
+
+## UI map
+
+Capsule exposes payment features in two main places:
+
+| UI surface | What it shows |
+| --- | --- |
+| Hosted subdomain app | Paid app checkout prompts for users without access |
+| App detail page | App price, buyer checkout action, payments tab |
+| Settings → Usage & Billing | Platform subscription, runtime usage, Stripe Connect payouts |
+
+## Operational notes
+
+- Webhook handling verifies Stripe signatures when a webhook secret is configured. In debug mode without a webhook secret, signature verification can be skipped.
+- App sale checkout uses Stripe Checkout and can create one-time or subscription sessions depending on `pricing_type`.
+- When a connected account is available, Stripe Connect transfer data is attached at checkout time.
+- When no connected account is available, app sale payments are recorded as pending payout onboarding.
+- `price` is the Python SDK field. HTTP and protobuf surfaces use `price_in_cents`.
+
+## Related
+
+- [Deploy An App](/build/deploy-an-app)
+- [App API Reference](/reference/app-api)
+- [CLI Reference](/reference/cli)

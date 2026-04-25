@@ -126,7 +126,7 @@ app = cpsl.App(
 | `memory` | MiB of RAM allocated to the sandbox |
 | `secrets` | Workspace secret names to inject into the runtime |
 | `filesystems` | Mount-path to `FileSystem` mapping |
-| `price` | Price in cents |
+| `price` | Paid app access price in cents |
 | `pricing_type` | `"one_time"` or `"monthly"` |
 
 ## App-building methods
@@ -325,7 +325,7 @@ class MyApp:
 | Argument | Meaning |
 | --- | --- |
 | `image` | Runtime image spec |
-| `price` | Price in cents |
+| `price` | Paid app access price in cents |
 | `pricing_type` | `"one_time"` or `"monthly"` |
 | `channels` | External channels |
 | `keep_warm_seconds` | Warm runtime window |
@@ -355,3 +355,4 @@ await app.settings.set("daily_goal", goal + 1)
 - [Collections And Settings Reference](/reference/collections-and-settings)
 - [Workflows Reference](/reference/workflows)
 - [Image, Theme, And Deployment Reference](/reference/image-theme-and-deployment)
+- [Pricing And Payments](/features/pricing-and-payments)

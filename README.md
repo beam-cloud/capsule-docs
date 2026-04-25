@@ -1,6 +1,6 @@
 # Capsule Documentation
 
-Documentation for [Capsule](https://github.com/beam-cloud/capsule), the platform for building, deploying, and monetizing agentic apps with a few lines of Python.
+Documentation for Capsule, the platform for building, deploying, and monetizing agentic apps with a few lines of Python.
 
 ## Development
 
