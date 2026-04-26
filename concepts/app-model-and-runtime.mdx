@@ -9,6 +9,8 @@ That sounds simple, but it has a few consequences. The same `App` definition can
 
 Deploying the app also gives you a hosted product surface with its own authenticated users. The app definition is not just "the backend." It is the thing Capsule uses to run the actual product.
 
+The idea is that each app user gets an isolated sandboxed runtime. Your code runs with its declared image, packages, secrets, integrations, and mounted filesystems, so an agent can read and write files, run background work, call tools, and serve pages as part of one application.
+
 ## How a real app is split
 
 Most non-trivial Capsule apps settle into four layers:
@@ -36,9 +38,11 @@ All of that is packaged off the same `App` definition. In practice, this means y
 
 ## Runtime per app user
 
-Capsule runs the app inside a managed runtime per app user. You do not have to invent your own execution layer for sessions, channel traffic, tasks, or page-backed interactions.
+Capsule runs the app inside a managed runtime per app user. You do not have to invent your own execution layer for sessions, channel traffic, tasks, page-backed interactions, or user-specific filesystem work.
 
-That same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app. The main thing that changes is where the requests come from, not what kind of app you are writing.
+That runtime is sandboxed and container-like: it has the environment specified in `Image(...)`, access to declared secrets and integrations, and any filesystems you mount. This is what lets Capsule apps do more than answer a prompt. They can keep working across chat, pages, tasks, schedules, generated files, uploads, and review flows.
+
+The same runtime model powers local iteration with `capsule serve`, hosted deploys with `capsule deploy`, and the channel-facing versions of the app. The main thing that changes is where the requests come from, not what kind of app you are writing.
 
 ## App-scoped users
 
@@ -52,8 +56,9 @@ That distinction matters because `access="authenticated"` pages, data handlers, 
 flowchart LR
     appUser[App user] --> surface[Chat, page, or channel]
     surface --> router[Capsule]
-    router --> runtime[Per-user app runtime]
-    runtime --> logic[Handlers, pages, and tasks]
+    router --> runtime[Isolated user runtime]
+    runtime --> container[Container environment]
+    container --> logic[Handlers, pages, and tasks]
     logic --> state[Collections, settings, and session data]
     logic --> resources[Secrets, integrations, and filesystems]
 ```

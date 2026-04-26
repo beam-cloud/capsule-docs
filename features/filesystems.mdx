@@ -3,9 +3,9 @@ title: "Filesystems"
 description: "Mount durable file storage into a Capsule runtime."
 ---
 
-Filesystems give your app durable mounted storage.
+Filesystems give your app durable mounted storage inside the sandboxed runtime.
 
-Use them for uploaded documents, generated reports, exports, cached model artifacts, and large intermediate outputs.
+Each app user runs in an isolated runtime, and your code can work with normal container-local paths plus any filesystems declared on the app. Use mounted filesystems for uploaded documents, generated reports, exports, cached model artifacts, and large intermediate outputs that should outlive one request.
 
 ## Create a filesystem
 
@@ -23,7 +23,7 @@ app = cpsl.App(
 )
 ```
 
-Inside the runtime, `/data` behaves like a normal directory.
+Inside the runtime, `/data` behaves like a normal directory. Your handlers, tasks, schedules, and workflows can all read and write through that path.
 
 ## Write files
 

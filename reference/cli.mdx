@@ -1,12 +1,13 @@
 ---
 title: "CLI"
-description: "The `capsule` CLI: bootstrap, login, serve, deploy, and workspace resources."
+description: "The `capsule` CLI: create, login, serve, deploy, and workspace resources."
 ---
 
 The `capsule` CLI is installed with the `cpsl` package.
 
 In day-to-day use, most people end up living in a pretty small subset of commands:
 
+- `capsule create`
 - `capsule login`
 - `capsule serve`
 - `capsule deploy`
@@ -20,20 +21,18 @@ That is normal. Most work happens in the loop of logging in, serving locally, cr
 This is a realistic day-to-day loop for a real app:
 
 ```bash
-capsule login
-capsule secret create OPENAI_API_KEY=sk-...
-capsule fs create support-ops
-capsule channel create support-telegram --type telegram -c bot_token=123:ABC
-capsule serve app:app --channel support-telegram
-capsule deploy app:app
+capsule create support-copilot --template basic-chat
+cd support-copilot
+uv sync
+capsule secret create ANTHROPIC_API_KEY=sk-ant-...
+capsule serve basic_chat.app:app
+capsule deploy basic_chat.app:app
 ```
 
 That one sequence covers the main platform primitives:
 
-- workspace authentication
+- project creation from a production-shaped template
 - app-owned secrets
-- mounted storage
-- external channel resources
 - local development
 - hosted deployment
 
@@ -45,7 +44,7 @@ capsule --help
 
 Main command groups:
 
-- `bootstrap`
+- `create`
 - `login`
 - `app`
 - `channel`
@@ -54,20 +53,25 @@ Main command groups:
 - `serve`
 - `fs`
 
-## `capsule bootstrap`
+## `capsule create`
 
-Use `bootstrap` when you want a starting point instead of an empty file.
+Use `create` to scaffold a production-shaped app from a template.
 
 ```bash
-capsule bootstrap my-app
-capsule bootstrap my-app --template minimal
+capsule create support-copilot --template basic-chat
+capsule create studio --template media-studio
+capsule create browser-demo --template browser-agent
+capsule create monitor --template background-agent
 ```
 
 Templates:
 
-- `chatbot`
-- `dashboard`
-- `minimal`
+- `basic-chat`
+- `media-studio`
+- `browser-agent`
+- `background-agent`
+
+The command prints the exact `uv sync`, `capsule secret create`, `capsule serve`, and `capsule deploy` steps for the chosen template.
 
 ## `capsule login`
 
@@ -187,12 +191,12 @@ capsule fs download reports /incoming/report.csv ./report.csv
 ## A smaller workflow
 
 ```bash
-capsule login
-capsule bootstrap my-app
+capsule create my-app --template basic-chat
 cd my-app
-capsule serve app:app
-capsule secret create OPENAI_API_KEY=sk-...
-capsule deploy app:app
+uv sync
+capsule secret create ANTHROPIC_API_KEY=sk-ant-...
+capsule serve basic_chat.app:app
+capsule deploy basic_chat.app:app
 ```
 
 If you only remember one thing from this page, make it this: most of the CLI is just helping you move the same app definition from local iteration to a deployed product, while creating the workspace resources that app needs along the way.

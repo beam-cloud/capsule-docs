@@ -5,7 +5,7 @@ description: "Serve locally, create workspace resources, and deploy the same Cap
 
 Capsule uses the same Python entry point for local development and hosted deploys.
 
-`capsule serve app:app` starts the local dev loop. `capsule deploy app:app` ships the app.
+`capsule serve app:app` starts the local dev loop. `capsule deploy app:app` ships the app. In hosted mode, Capsule runs the app in isolated per-user runtimes so each app user has their own sandboxed execution context.
 
 ## 1. Confirm the entry point
 
@@ -60,6 +60,8 @@ The code stays the same, but requests now come from the hosted app:
 - `session.user` is the current app user
 - `access="authenticated"` pages are gated
 - workspace secrets are resolved in the managed runtime
+- each app user gets an isolated runtime for agent work
+- filesystems and container-local files are available to code running in that runtime
 - declared channels can deliver messages to the app
 
 ## 5. Iterate

@@ -5,7 +5,7 @@ description: "Build, serve, and deploy a small Capsule app."
 
 This is the shortest path from an empty project to a live Capsule app.
 
-You will build one app with chat and a small page, run it locally, then deploy the same entry point.
+You will build one app with chat and a small page, run it locally, then deploy the same entry point. Once deployed, Capsule gives each app user an isolated sandboxed runtime where your agent can use its Python environment, files, secrets, and mounted filesystems.
 
 ## 1. Install Capsule
 
@@ -35,126 +35,64 @@ capsule login
 
 This authenticates your local machine as a builder. Your deployed app will still get its own app-scoped user sign-in flow.
 
-## 3. Add the model dependency
+## 3. Create a project from a template
+
+Use a production-shaped starter instead of a blank file:
 
 ```bash
-uv add openai
+capsule create support-copilot --template basic-chat
+cd support-copilot
 ```
 
-or:
+The generated README shows required secrets, local run commands, and the deploy entry point.
+
+## 4. Install dependencies
+
+If you have `uv`:
 
 ```bash
-pip install openai
+uv sync
 ```
 
-Make the key available locally:
+Without `uv`:
 
 ```bash
-export OPENAI_API_KEY=sk-...
+pip install -e .
 ```
 
-Create the matching workspace secret for deploys:
+## 5. Add secrets
+
+Templates print the exact secret commands they need. For `basic-chat`:
 
 ```bash
-capsule secret create OPENAI_API_KEY=sk-...
+capsule secret create ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-## 4. Create `app.py`
+Local environment variables work while serving locally. Deployed apps need Capsule secrets.
 
-```python
-import cpsl
-from openai import AsyncOpenAI
-
-client = AsyncOpenAI()
-
-app = cpsl.App(
-    name="hello-capsule",
-    image=cpsl.Image(python_packages=["openai"]),
-    secrets=["OPENAI_API_KEY"],
-)
-
-
-@app.page("Status", icon="layout-dashboard")
-def status_page():
-    return cpsl.ui.Page(
-        [
-            cpsl.ui.Text("Hello from Capsule", style="heading"),
-            cpsl.ui.Text(
-                "Chat, pages, and deploys all come from the same app definition.",
-                style="muted",
-            ),
-        ]
-    )
-
-
-@app.message()
-async def handle(session: cpsl.Session, msg: cpsl.Message):
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a concise product assistant. Help the user think "
-                    "through agentic app ideas, channels, pages, tasks, and "
-                    "integrations."
-                ),
-            },
-            *session.chat_messages(msg),
-        ],
-    )
-
-    text = response.choices[0].message.content or "I could not generate a reply."
-    session.data["last_response"] = text
-    await session.reply(text)
-```
-
-This file has three pieces:
-
-- `App(...)` defines the runtime and deploy config
-- `@app.page(...)` adds a sidebar page
-- `@app.message()` registers the chat handler
-
-The same app definition owns all three.
-
-## 5. Serve locally
+## 6. Serve locally
 
 ```bash
-capsule serve app:app
+capsule serve basic_chat.app:app
 ```
 
-`app:app` means "load the symbol `app` from `app.py`."
+Open the preview URL from the command output. You should see a hosted chat surface and a context page.
 
-Open the preview URL from the command output. You should see:
-
-- chat, powered by `@app.message()`
-- a `Status` page, powered by `@app.page(...)`
-
-Try a product-shaped prompt:
-
-- `I want to build a Telegram concierge for travel agents. What should the app include?`
-- `How would you structure the state, pages, tasks, and integrations?`
-
-## 6. Deploy
-
-When the app works locally:
+## 7. Deploy
 
 ```bash
-capsule deploy app:app
+capsule deploy basic_chat.app:app
 ```
 
 Deploy packages the same app definition and returns a hosted URL. Users sign into that hosted app; the signed-in user is available inside handlers as `session.user`.
 
-## 7. Add the next surface
+## Try another template
 
-From here, add one capability at a time:
-
-- Need durable records? Add [collections](/features/collections).
-- Need a review surface? Add [pages](/features/pages).
-- Need external services? Add [integrations](/features/integrations) and [secrets](/features/secrets).
-- Need long-running work? Add [tasks and schedules](/features/tasks-and-schedules).
-- Need Telegram, Slack, or WhatsApp? Add [channels](/features/channels).
-- Need to sell the app? Add [pricing and payments](/features/pricing-and-payments).
+```bash
+capsule create studio --template media-studio
+capsule create browser-demo --template browser-agent
+capsule create monitor --template background-agent
+```
 
 ## Next steps
 
