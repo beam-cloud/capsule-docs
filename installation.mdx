@@ -48,7 +48,7 @@ capsule --help
 You should see command groups such as:
 
 ```text
-bootstrap
+create
 login
 app
 channel
@@ -70,19 +70,22 @@ This opens a browser, authenticates against your workspace, and stores a local t
 
 ## Scaffold a project
 
-Use `bootstrap` when you want a template instead of a blank `app.py`:
+Use `create` when you want a template instead of a blank `app.py`:
 
 ```bash
-capsule bootstrap my-agent-app
+capsule create my-agent-app --template quickstart
+cd my-agent-app
+uv sync
 ```
 
-The bootstrap command can generate:
+The create command can generate:
 
-- `minimal` for a tiny message handler
-- `chatbot` for a BAML-backed chat app
-- `dashboard` for chat plus a custom React page
+- `quickstart` for a BAML-backed assistant with packaged context
+- `media-studio` for generated media in chat
+- `browser-agent` for browser workflows
+- `background-agent` for scheduled agent loops
 
-The `minimal` template is good if you want to understand the smallest possible app. `dashboard` is a better starting point if you already know you want chat plus a custom page.
+Start with `quickstart` for the main path, then use `media-studio`, `browser-agent`, or `background-agent` when you want a more specialized starter.
 
 ## Next steps
 

@@ -5,15 +5,15 @@ description: "Serve locally, create workspace resources, and deploy the same Cap
 
 Capsule uses the same Python entry point for local development and hosted deploys.
 
-`capsule serve app:app` starts the local dev loop. `capsule deploy app:app` ships the app. In hosted mode, Capsule runs the app in isolated per-user runtimes so each app user has their own sandboxed execution context.
+`capsule serve app.py:app` starts the local dev loop. `capsule deploy app.py:app` ships the app. In hosted mode, Capsule runs the app in isolated per-user runtimes so each app user has their own sandboxed execution context.
 
 ## 1. Confirm the entry point
 
 ```bash
-capsule serve app:app
+capsule serve app.py:app
 ```
 
-`app:app` means:
+`app.py:app` means:
 
 - module: `app.py`
 - symbol: `app`
@@ -45,7 +45,7 @@ app = cpsl.App(
 ## 3. Deploy
 
 ```bash
-capsule deploy app:app
+capsule deploy app.py:app
 ```
 
 Deploy sends the app definition, runtime image, source archive, pages, integrations, schedules, secrets, filesystems, channels, and product settings to Capsule.
@@ -69,8 +69,8 @@ The code stays the same, but requests now come from the hosted app:
 Make changes locally, serve again, then deploy the same entry point when ready.
 
 ```bash
-capsule serve app:app
-capsule deploy app:app
+capsule serve app.py:app
+capsule deploy app.py:app
 ```
 
 ## Next steps

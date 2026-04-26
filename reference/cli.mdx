@@ -21,12 +21,12 @@ That is normal. Most work happens in the loop of logging in, serving locally, cr
 This is a realistic day-to-day loop for a real app:
 
 ```bash
-capsule create support-copilot --template basic-chat
-cd support-copilot
+capsule create my-app --template quickstart
+cd my-app
 uv sync
 capsule secret create ANTHROPIC_API_KEY=sk-ant-...
-capsule serve basic_chat.app:app
-capsule deploy basic_chat.app:app
+capsule serve app.py:app
+capsule deploy app.py:app
 ```
 
 That one sequence covers the main platform primitives:
@@ -58,7 +58,7 @@ Main command groups:
 Use `create` to scaffold a production-shaped app from a template.
 
 ```bash
-capsule create support-copilot --template basic-chat
+capsule create my-app --template quickstart
 capsule create studio --template media-studio
 capsule create browser-demo --template browser-agent
 capsule create monitor --template background-agent
@@ -66,7 +66,7 @@ capsule create monitor --template background-agent
 
 Templates:
 
-- `basic-chat`
+- `quickstart`
 - `media-studio`
 - `browser-agent`
 - `background-agent`
@@ -92,7 +92,7 @@ Useful options:
 `serve` is the local development loop. It uploads the project, boots the runtime, and hot-reloads as you edit:
 
 ```bash
-capsule serve app:app
+capsule serve app.py:app
 ```
 
 Options:
@@ -100,16 +100,16 @@ Options:
 - `--channel <name>` bind one or more named channels during local serve
 - `--force-channel` unbind or rebind existing channel bindings
 
-Entry-point format is always `module:symbol`.
+Entry-point format is always `file.py:symbol`.
 
-For example, `capsule serve app:app` means "load the symbol `app` from `app.py`".
+For example, `capsule serve app.py:app` means "load the symbol `app` from `app.py`".
 
 ## `capsule deploy`
 
 When the app looks good locally, `deploy` promotes that same definition to a hosted version:
 
 ```bash
-capsule deploy app:app
+capsule deploy app.py:app
 ```
 
 Deploy reads the app definition and sends the runtime image, pages, integrations, schedules, secrets, filesystems, pricing, and source archive to Capsule.
@@ -191,12 +191,12 @@ capsule fs download reports /incoming/report.csv ./report.csv
 ## A smaller workflow
 
 ```bash
-capsule create my-app --template basic-chat
+capsule create my-app --template quickstart
 cd my-app
 uv sync
 capsule secret create ANTHROPIC_API_KEY=sk-ant-...
-capsule serve basic_chat.app:app
-capsule deploy basic_chat.app:app
+capsule serve app.py:app
+capsule deploy app.py:app
 ```
 
 If you only remember one thing from this page, make it this: most of the CLI is just helping you move the same app definition from local iteration to a deployed product, while creating the workspace resources that app needs along the way.

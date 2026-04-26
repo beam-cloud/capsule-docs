@@ -40,8 +40,8 @@ This authenticates your local machine as a builder. Your deployed app will still
 Use a production-shaped starter instead of a blank file:
 
 ```bash
-capsule create support-copilot --template basic-chat
-cd support-copilot
+capsule create my-app --template quickstart
+cd my-app
 ```
 
 The generated README shows required secrets, local run commands, and the deploy entry point.
@@ -62,7 +62,7 @@ pip install -e .
 
 ## 5. Add secrets
 
-Templates print the exact secret commands they need. For `basic-chat`:
+Templates print the exact secret commands they need. For `quickstart`:
 
 ```bash
 capsule secret create ANTHROPIC_API_KEY=sk-ant-...
@@ -73,7 +73,7 @@ Local environment variables work while serving locally. Deployed apps need Capsu
 ## 6. Serve locally
 
 ```bash
-capsule serve basic_chat.app:app
+capsule serve app.py:app
 ```
 
 Open the preview URL from the command output. You should see a hosted chat surface and a context page.
@@ -81,7 +81,7 @@ Open the preview URL from the command output. You should see a hosted chat surfa
 ## 7. Deploy
 
 ```bash
-capsule deploy basic_chat.app:app
+capsule deploy app.py:app
 ```
 
 Deploy packages the same app definition and returns a hosted URL. Users sign into that hosted app; the signed-in user is available inside handlers as `session.user`.

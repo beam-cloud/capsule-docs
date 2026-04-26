@@ -29,8 +29,8 @@ Capsule is a serverless runtime for agent apps. You do not provision containers 
 Create an agent app from a template:
 
 ```bash
-capsule create support-copilot --template basic-chat
-cd support-copilot
+capsule create my-app --template quickstart
+cd my-app
 uv sync
 ```
 
@@ -43,7 +43,7 @@ capsule secret create ANTHROPIC_API_KEY=sk-ant-...
 Deploy the same package entry point:
 
 ```bash
-capsule deploy basic_chat.app:app
+capsule deploy app.py:app
 ```
 
 The deployed app gets a hosted URL, app-scoped sign-in, and the same chat handlers, pages, workflows, tasks, schedules, collections, secrets, and filesystems declared in Python. Each signed-in app user gets their own runtime context, so agents can work with files and long-running state without sharing another user's sandbox.
@@ -52,7 +52,7 @@ The deployed app gets a hosted URL, app-scoped sign-in, and the same chat handle
 
 Start with the product shape closest to what you want to ship.
 
-- `basic-chat` for a chat app grounded in packaged context files with BAML.
+- `quickstart` for a chat app grounded in packaged context files with BAML.
 - `media-studio` for fal.ai image generation displayed directly in chat.
 - `browser-agent` for visible browser workflows and agent-assisted browsing.
 - `background-agent` for scheduled or on-demand agent loops with a results page.
@@ -87,7 +87,7 @@ Use these when you know the feature you need.
 
 Capsule includes examples you can copy from in project templates and example apps:
 
-- `minimal` for the smallest app shape
-- `chatbot` for an LLM-backed assistant
-- `dashboard` for chat plus a page
-- `test_suite` for tasks, schedules, task boards, and integration prompts
+- `quickstart` for a BAML-backed assistant with packaged context
+- `media-studio` for generated media in chat
+- `browser-agent` for browser workflows
+- `background-agent` for scheduled agent loops
