@@ -54,7 +54,7 @@ Use `session.data` for lightweight state that belongs to one conversation.
 
 ```python
 await session.show_task(handle, message="Report started")
-await session.show_integration("github", reason="Connect GitHub to inspect repositories")
+await session.show_integration(cpsl.Integration.GITHUB, reason="Connect GitHub to inspect repositories")
 await session.show_image("/data/chart.png", alt="Chart")
 ```
 
@@ -64,7 +64,7 @@ Use these when the assistant needs to show progress, ask for resources, or rende
 
 ```python
 upload = await session.prompt_file(message="Upload a CSV", accept=".csv,text/csv")
-github = await session.prompt_integration("github", reason="Need repo access")
+github = await session.require_integration(cpsl.Integration.GITHUB, reason="Need repo access")
 ```
 
 Prompt methods block until the user completes the action or the prompt times out.

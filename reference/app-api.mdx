@@ -32,10 +32,11 @@ app = cpsl.App(
 )
 
 app.add_integration(
-    "gmail",
-    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
-    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    cpsl.Gmail(
+        client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    )
 )
 
 threads = app.collection(
@@ -175,12 +176,13 @@ In practice, most apps call this once near the top of the file and rarely touch 
 Declare a user-facing integration.
 
 ```python
-app.add_integration("aws")
+app.add_integration(cpsl.AWS())
 app.add_integration(
-    "github",
-    client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
-    scopes=["repo"],
+    cpsl.GitHub(
+        client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
+        scopes=["repo"],
+    )
 )
 ```
 

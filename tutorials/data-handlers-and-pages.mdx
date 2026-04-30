@@ -40,10 +40,11 @@ import cpsl.ui as ui
 app = cpsl.App(name="support-ops", image=cpsl.Image())
 
 app.add_integration(
-    "gmail",
-    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
-    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    cpsl.Gmail(
+        client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    )
 )
 
 threads = app.collection(
@@ -84,7 +85,7 @@ async def mailbox_metrics():
 
 @app.data("threads", access="authenticated")
 async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"threads": [], "gmail_connected": False}
 
@@ -98,7 +99,7 @@ async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
 
 @app.data("thread", access="authenticated")
 async def get_thread(ctx: cpsl.RequestContext, thread_id: str):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"thread": None, "gmail_connected": False}
 
@@ -265,10 +266,11 @@ import cpsl.ui as ui
 app = cpsl.App(name="support-ops", image=cpsl.Image())
 
 app.add_integration(
-    "gmail",
-    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
-    scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    cpsl.Gmail(
+        client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+        scopes=["https://www.googleapis.com/auth/gmail.readonly"],
+    )
 )
 
 threads = app.collection(
@@ -302,7 +304,7 @@ async def mailbox_metrics():
 
 @app.data("threads", access="authenticated")
 async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"threads": [], "gmail_connected": False}
 
@@ -316,7 +318,7 @@ async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
 
 @app.data("thread", access="authenticated")
 async def get_thread(ctx: cpsl.RequestContext, thread_id: str):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"thread": None, "gmail_connected": False}
 

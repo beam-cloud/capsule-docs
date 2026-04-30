@@ -37,17 +37,18 @@ Use integrations when the credential belongs to the signed-in app user.
 
 ```python
 app.add_integration(
-    "github",
-    client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
-    scopes=["repo", "read:user"],
+    cpsl.GitHub(
+        client_id=cpsl.Secret.from_name("GITHUB_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GITHUB_CLIENT_SECRET"),
+        scopes=["repo", "read:user"],
+    )
 )
 ```
 
 Known secret-form integrations can be declared directly:
 
 ```python
-app.add_integration("aws")
+app.add_integration(cpsl.AWS())
 ```
 
 ## 4. Prompt at runtime
@@ -55,8 +56,8 @@ app.add_integration("aws")
 ```python
 @app.message()
 async def handle(session: cpsl.Session, msg: cpsl.Message):
-    github = await session.prompt_integration(
-        "github",
+    github = await session.require_integration(
+        cpsl.Integration.GITHUB,
         reason="Connect GitHub so I can inspect repositories.",
     )
     await session.reply(f"Connected GitHub with scopes: {github.scopes}")

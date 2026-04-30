@@ -55,7 +55,7 @@ Integrations belong to app users. If a page or chat handler needs GitHub, Gmail,
 ```python
 @app.data("repos", access="authenticated")
 async def repos(ctx: cpsl.RequestContext):
-    github = ctx.integrations.get("github")
+    github = ctx.integrations.get(cpsl.Integration.GITHUB)
     if not github:
         return {"connected": False, "repos": []}
     return {"connected": True, "repos": await load_repos(github.access_token)}

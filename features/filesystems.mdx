@@ -25,6 +25,8 @@ app = cpsl.App(
 
 Inside the runtime, `/data` behaves like a normal directory. Your handlers, tasks, schedules, and workflows can all read and write through that path.
 
+The mount is an app/workspace resource, not a private directory automatically created per end user. If files are user-specific, namespace paths yourself, for example `/data/users/{session.user.id}/summary.md`, or keep private/queryable state in user-scoped collections and store only generated artifacts in the filesystem.
+
 ## Write files
 
 ```python

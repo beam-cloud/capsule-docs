@@ -56,7 +56,7 @@ export default function Mailbox() {
 ```python
 @app.data("threads", access="authenticated")
 async def threads(ctx: cpsl.RequestContext, status: str = ""):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"gmail_connected": False, "threads": []}
 

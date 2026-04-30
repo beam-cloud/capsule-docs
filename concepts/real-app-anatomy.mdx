@@ -50,10 +50,11 @@ app = cpsl.App(
 )
 
 app.add_integration(
-    "gmail",
-    client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
-    client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
-    scopes=["https://www.googleapis.com/auth/gmail.modify"],
+    cpsl.Gmail(
+        client_id=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_ID"),
+        client_secret=cpsl.Secret.from_name("GOOGLE_OAUTH_CLIENT_SECRET"),
+        scopes=["https://www.googleapis.com/auth/gmail.modify"],
+    )
 )
 
 leads = app.collection("leads", columns=["company", "status", "thread_id"], scope="owner")
@@ -106,7 +107,7 @@ That can look like this:
 ```python
 @app.data("threads", access="authenticated")
 async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
-    creds = ctx.integrations.get("gmail")
+    creds = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not creds:
         return {"threads": [], "gmail_connected": False}
 

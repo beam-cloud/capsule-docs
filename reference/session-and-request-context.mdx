@@ -63,7 +63,7 @@ async def handle(session: cpsl.Session, msg: cpsl.Message):
     )
 ```
 
-On hosted apps, `session.user` comes from the app's sign-in flow. The same email can appear in another Capsule app too, but it is still a separate app user in that other app's context.
+On hosted web apps, `session.user` comes from the app's sign-in flow. External channels such as Telegram may provide a channel-scoped platform user id until that identity is explicitly linked to an app user. The same email can appear in another Capsule app too, but it is still a separate app user in that other app's context.
 
 ### Common methods
 
@@ -78,6 +78,8 @@ On hosted apps, `session.user` comes from the app's sign-in flow. The same email
 | `await show(block)` | Render a structured block |
 | `await show_task(handle_or_id, message=None)` | Show a live task card |
 | `await show_integration(type, reason="")` | Show a non-blocking integration card |
+| `get_integration(type_or_config)` | Return connected credentials if present |
+| `await require_integration(type_or_config, reason="")` | Prompt when credentials are missing |
 | `await show_browser(...)` | Show an embedded browser/live view block |
 | `await show_image(source, alt="", width=None)` | Render an image inline |
 | `await prompt_file(...)` | Block until the user uploads a file |
@@ -140,9 +142,19 @@ await session.show_task(handle, message="Building report...")
 
 ```python
 await session.show_integration(
-    "github",
+    cpsl.Integration.GITHUB,
     reason="Connect GitHub to unlock project analysis",
 )
+```
+
+Use `require_integration(...)` when the current flow cannot continue without credentials:
+
+```python
+github = await session.require_integration(
+    cpsl.Integration.GITHUB,
+    reason="Connect GitHub so I can inspect repositories.",
+)
+headers = {"Authorization": f"Bearer {github.access_token}"}
 ```
 
 ### `show_browser(...)`
@@ -184,7 +196,7 @@ Example:
 ```python
 @app.data("threads", access="authenticated")
 async def get_threads(ctx: cpsl.RequestContext, status: str = ""):
-    gmail = ctx.integrations.get("gmail")
+    gmail = ctx.integrations.get(cpsl.Integration.GMAIL)
     if not gmail:
         return {"threads": [], "gmail_connected": False}
 
